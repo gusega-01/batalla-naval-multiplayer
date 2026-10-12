@@ -193,7 +193,7 @@ export function submitFleet(state: ServerRoomState, playerId: PlayerId, placemen
     if (s.phase !== 'placement') return fail('INVALID_PHASE', 'No es la fase de colocación');
     if (p.fleetConfirmed) return fail('INVALID_PHASE', 'Tu flota ya está confirmada');
     const check = validatePlacements(placements);
-    if (!check.ok) return fail('INVALID_PLACEMENT', (check as any).message || 'Posición de flota no válida');
+if (!check.ok) return fail('INVALID_PLACEMENT', (check as any).message || 'Posición no válida');
     p.board = buildBoard(placements);
   });
 }
