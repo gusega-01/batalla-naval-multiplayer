@@ -244,7 +244,6 @@
         let selectedAtaque = 'simple';
         let ataqueCosto = 0;
 
-        // Historial persistente por pestaña
         const boardHistories = { my: {} };
 
         function appendLog(text) {
@@ -269,7 +268,6 @@
                     cell.dataset.row = r;
                     cell.dataset.col = c;
 
-                    // Restaurar estado guardado
                     const state = boardHistories[activeTabId][key];
                     if (state) cell.classList.add(state);
 
@@ -281,7 +279,6 @@
 
         function ubicarBarcosAleatorio() {
             boardHistories['my'] = {};
-            // Ubicamos barcos de muestra en el tablero propio
             const sampleShips = ['0_0','0_1','0_2','2_2','3_2','4_2','6_5','6_6','6_7','6_8','9_1','9_2'];
             sampleShips.forEach(key => {
                 boardHistories['my'][key] = 'ship';
@@ -292,8 +289,9 @@
 
         function confirmarBarcos() {
             document.getElementById('placementSection').style.display = 'none';
+            document.getElementById('gameBar').style.display = 'flex'; // Muestra la barra de juego inmediatamente
             socket.emit('game:ready', { roomCode: currentRoomCode });
-            appendLog('✅ Flota lista. ¡Esperando a los rivales!');
+            appendLog('✅ Flota lista. ¡Comienza el combate!');
         }
 
         function renderTabs(players) {
@@ -370,7 +368,6 @@
                 return;
             }
 
-            // Ataque a un rival (El disparo SIMPLE NO consume energía)
             if (selectedAtaque !== 'simple') {
                 if (myEnergy < ataqueCosto) return alert('⚡ Energía insuficiente');
                 myEnergy -= ataqueCosto;
@@ -378,7 +375,7 @@
             }
 
             cellEl.classList.add('hit');
-            boardHistories[activeTabId][key] = 'hit'; // Persistir disparo en la pestaña del rival
+            boardHistories[activeTabId][key] = 'hit';
 
             appendLog(`Disparo ${selectedAtaque.toUpperCase()} a ${activeTabId} en (${row},${col})`);
             socket.emit('game:action', { 
@@ -437,16 +434,11 @@
             document.getElementById('setupMenu').style.display = 'none';
             document.getElementById('inviteSection').style.display = 'none';
             document.getElementById('placementSection').style.display = 'block';
+            document.getElementById('gameBar').style.display = 'flex'; // Visibilidad garantizada
             document.getElementById('tabBar').style.display = 'flex';
             document.getElementById('boardContainer').style.display = 'block';
             ubicarBarcosAleatorio();
         }
-
-        socket.on('game:start', () => {
-            document.getElementById('placementSection').style.display = 'none';
-            document.getElementById('gameBar').style.display = 'flex';
-            appendLog('¡La batalla naval táctica de 4 jugadores ha comenzado!');
-        });
 
         function copiarLink() {
             const copyText = document.getElementById('inviteLinkInput');
