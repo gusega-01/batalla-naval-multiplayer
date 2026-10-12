@@ -232,13 +232,15 @@
     .cell.water { background-color: #3498db; color: white; }
     .cell.hit { background-color: #e74c3c; color: white; }
     .cell.shielded { border: 2px solid #1abc9c; }
+    .cell.drag-over { background-color: #8e44ad !important; }
+    .cell.selected-move { border: 2px solid #f1c40f; }
   </style>
 </head>
 <body>
 
   <h1>🚢 Batalla Naval Táctica (4 Jugadores)</h1>
 
-  <!-- Menú Inicial de Apodo y Sala -->
+  <!-- Menú Inicial -->
   <div id="setupMenu" class="invite-card">
     <h3 style="margin:2px 0;">Tu Apodo</h3>
     <input type="text" id="playerNameInput" placeholder="Ej: Gustavo" maxlength="12">
@@ -249,7 +251,7 @@
     <button class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
   </div>
 
-  <!-- Sección QR / Link de Invitación / Bots -->
+  <!-- Invitación QR / Link / Bots -->
   <div id="inviteSection" class="invite-card" style="display: none;">
     <p style="margin:2px 0;"><b>¡Sala Creada!</b> Link de invitación:</p>
     <input type="text" id="inviteLinkInput" readonly>
@@ -261,7 +263,7 @@
     <button class="btn-primary" style="background:#8b5cf6;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
   </div>
 
-  <!-- Fase de Colocación de Barcos Manual y Aleatoria -->
+  <!-- Fase de Colocación -->
   <div class="invite-card" id="placementPanel" style="display: none;">
     <h3 style="margin: 0 0 6px 0;">🛠️ Seleccioná un barco y tocá una casilla</h3>
     <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 6px;">
@@ -277,12 +279,12 @@
     </div>
   </div>
 
-  <!-- Barra de Habilidades y Energía -->
+  <!-- Panel de Habilidades -->
   <div class="skills-panel" id="skillsPanel" style="display: none;">
     <div class="energy-badge">⚡ Energía: <span id="energyValue">3</span>/10</div>
 
     <button class="roulette-btn" id="btnRoulette" onclick="girarRuleta()">🎰 Girar Ruleta (0⚡)</button>
-    <span class="target-badge" id="targetInfo">🎯 Tirar ruleta</span>
+    <span class="target-badge" id="targetInfo">🎯 Objetivo: Pendiente</span>
 
     <button class="skill-btn active" id="btnShot" onclick="setSkill('basic_shot')">💥 Normal (0⚡)</button>
     <button class="skill-btn" id="btnCross" onclick="setSkill('cross_shot')">➕ Cruz (4⚡)</button>
@@ -328,6 +330,10 @@
     let rouletteSpun = false;
     let activeTabId = 'my';
     let enemyPlayers = [];
+    let showMyShips = true; // Control Ocultar/Mostrar Flota
+
+    // Control para mover barcos
+    let shipToMove = null;
 
     const boardHistories = { my: {} };
 
@@ -340,6 +346,13 @@
     function toggleOrientation() {
       isHorizontal = !isHorizontal;
       document.getElementById('btnToggleRotate').innerText = `🔄 ${isHorizontal ? 'Horizontal' : 'Vertical'}`;
+    }
+
+    function toggleShowShips() {
+      showMyShips = !showMyShips;
+      log(showMyShips ? '👁️ Barcos visibles en tu tablero.' : '🙈 Barcos ocultos en tu tablero.');
+      renderTabs();
+      renderActiveBoard();
     }
 
     function getPlayerName() {
@@ -421,7 +434,6 @@
       document.getElementById('btnConfirmFleet').disabled = (placedShips.length < availableShips.length);
     }
 
-    // Colocación manual tocando celdas
     function tryPlaceShipManual(r, c) {
       if (!selectedSetupShipId) return alert('Seleccioná un barco de la lista primero');
       const shipCfg = availableShips.find(s => s.id === selectedSetupShipId);
@@ -523,13 +535,18 @@
       const tabBar = document.getElementById('tabBar');
       tabBar.innerHTML = '';
 
+      // Mi pestaña con botón Ocultar/Mostrar
       const myBtn = document.createElement('button');
       myBtn.className = 'tab-btn' + (activeTabId === 'my' ? ' active' : '');
-      myBtn.innerText = '🛡️ Mi Flota';
+      myBtn.innerText = `🛡️ Mi Flota ${showMyShips ? '👁️' : '🙈'}`;
       myBtn.onclick = () => {
-        activeTabId = 'my';
-        renderTabs();
-        renderActiveBoard();
+        if (activeTabId === 'my') {
+          toggleShowShips(); // Alterna visibilidad si ya está seleccionada
+        } else {
+          activeTabId = 'my';
+          renderTabs();
+          renderActiveBoard();
+        }
       };
       tabBar.appendChild(myBtn);
 
@@ -574,13 +591,20 @@
 
     function setSkill(skill) {
       selectedSkill = skill;
+      shipToMove = null;
       document.querySelectorAll('.skill-btn').forEach(b => b.classList.remove('active'));
       const map = {
         basic_shot: 'btnShot', cross_shot: 'btnCross', sonar: 'btnSonar', rain: 'btnRain',
         shield: 'btnShield', move_ship: 'btnMove', repair: 'btnRepair'
       };
       if (map[skill]) document.getElementById(map[skill]).classList.add('active');
-      log(`Habilidad elegida: <b>${skill.toUpperCase()}</b>`);
+
+      if (skill === 'move_ship') {
+        log('⚓ <b>Mover Barco:</b> Arrastrá un barco o tocá un barco y luego la casilla de destino.');
+      } else {
+        log(`Habilidad elegida: <b>${skill.toUpperCase()}</b>`);
+      }
+      renderActiveBoard();
     }
 
     function renderActiveBoard() {
@@ -596,13 +620,49 @@
           cell.className = 'cell';
 
           if (activeTabId === 'my') {
-            if (myGrid[r][c] !== null) {
+            const shipId = myGrid[r][c];
+
+            if (showMyShips && shipId !== null) {
               cell.classList.add('ship');
               cell.innerText = '🚢';
+
+              // Habilitar Arrastrar para la habilidad MOVER BARCO
+              if (selectedSkill === 'move_ship') {
+                cell.draggable = true;
+                cell.ondragstart = (e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ shipId, origR: r, origC: c }));
+                };
+              }
             }
+
+            if (shipToMove && shipToMove.shipId === shipId) {
+              cell.classList.add('selected-move');
+            }
+
             const state = boardHistories['my'][key];
             if (state) cell.classList.add(state);
-            cell.onclick = () => ejecutarAccionPropia(r, c, cell);
+
+            // Drag Over y Drop para Mover Barco
+            cell.ondragover = (e) => {
+              if (selectedSkill === 'move_ship') {
+                e.preventDefault();
+                cell.classList.add('drag-over');
+              }
+            };
+            cell.ondragleave = () => cell.classList.remove('drag-over');
+            cell.ondrop = (e) => {
+              if (selectedSkill === 'move_ship') {
+                e.preventDefault();
+                cell.classList.remove('drag-over');
+                const rawData = e.dataTransfer.getData('text/plain');
+                if (rawData) {
+                  const data = JSON.parse(rawData);
+                  ejecutarMoverBarco(data.shipId, r, c);
+                }
+              }
+            };
+
+            cell.onclick = () => ejecutarAccionPropia(r, c, shipId, cell);
           } else {
             const state = boardHistories[activeTabId][key];
             if (state) {
@@ -618,11 +678,56 @@
       }
     }
 
-    function ejecutarAccionPropia(r, c, cellEl) {
-      if (['shield', 'repair', 'move_ship'].includes(selectedSkill)) {
+    function ejecutarMoverBarco(shipId, newR, newC) {
+      if (!isFreeChoice) return alert('Mover barco requiere Objetivo Libre en la Ruleta');
+      if (myEnergy < 2) return alert('⚡ Energía insuficiente (requiere 2⚡)');
+
+      const shipObj = placedShips.find(p => p.id === shipId);
+      if (!shipObj) return;
+
+      // Verificar si entra en la nueva posición
+      const newCoords = [];
+      for (let i = 0; i < shipObj.length; i++) {
+        const currR = shipObj.isHorizontal ? newR : newR + i;
+        const currC = shipObj.isHorizontal ? newC + i : newC;
+
+        if (currR >= 10 || currC >= 10 || (myGrid[currR][currC] !== null && myGrid[currR][currC] !== shipId)) {
+          return alert('Posición no válida para mover el barco');
+        }
+        newCoords.push({ r: currR, c: currC });
+      }
+
+      // Limpiar coordenadas viejas
+      shipObj.coords.forEach(c => { myGrid[c.r][c.c] = null; });
+      // Colocar en nuevas coordenadas
+      newCoords.forEach(c => { myGrid[c.r][c.c] = shipId; });
+      shipObj.coords = newCoords;
+
+      myEnergy -= 2;
+      document.getElementById('energyValue').innerText = myEnergy;
+      log(`⚓ Barco ${shipObj.name} movido a (${newR},${newC}).`);
+
+      shipToMove = null;
+      setSkill('basic_shot');
+      renderActiveBoard();
+    }
+
+    function ejecutarAccionPropia(r, c, shipId, cellEl) {
+      if (selectedSkill === 'move_ship') {
+        if (shipId !== null) {
+          shipToMove = { shipId, r, c };
+          log(`⚓ Barco seleccionado para mover. Tocá la casilla de destino.`);
+          renderActiveBoard();
+        } else if (shipToMove) {
+          ejecutarMoverBarco(shipToMove.shipId, r, c);
+        }
+        return;
+      }
+
+      if (['shield', 'repair'].includes(selectedSkill)) {
         if (!isFreeChoice) return alert('Escudo/Reparación requiere Objetivo Libre');
         
-        const costs = { shield: 2, repair: 3, move_ship: 2 };
+        const costs = { shield: 2, repair: 3 };
         if (myEnergy < costs[selectedSkill]) return alert('⚡ Energía insuficiente');
 
         myEnergy -= costs[selectedSkill];
@@ -635,7 +740,7 @@
         log(`Defensa ${selectedSkill.toUpperCase()} aplicada en (${r},${c})`);
         setSkill('basic_shot');
       } else {
-        alert('En tu tablero solo podés aplicar defensas');
+        alert('En tu tablero solo podés aplicar defensas (Escudo/Reparación/Mover)');
       }
     }
 
@@ -677,7 +782,7 @@
       currentTargetId = undefined;
       isFreeChoice = false;
       document.getElementById('btnRoulette').disabled = false;
-      document.getElementById('targetInfo').innerText = '🎯 Tirar ruleta';
+      document.getElementById('targetInfo').innerText = '🎯 Objetivo: Pendiente';
       setSkill('basic_shot');
       renderTabs();
     }
