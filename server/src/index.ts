@@ -28,6 +28,7 @@ interface Player {
   isBot: boolean;
   energy: number;
   grid: (string | null)[][];
+  ready: boolean;
 }
 
 interface RoomData {
@@ -42,7 +43,7 @@ interface RoomData {
 
 const rooms: Record<string, RoomData> = {};
 
-function generarFlotaMatriz(): (string | null)[][] {
+function generarFlotaBot(): (string | null)[][] {
   const grid: (string | null)[][] = Array(10).fill(null).map(() => Array(10).fill(null));
   const ships = [
     { id: 'carrier', length: 4 },
@@ -83,12 +84,12 @@ function generarFlotaMatriz(): (string | null)[][] {
 }
 
 io.on('connection', (socket) => {
-  console.log('💡 Jugador conectado:', socket.id);
+  console.log('💡 Conectado:', socket.id);
 
   socket.on('room:create', ({ hostName }) => {
     const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
     rooms[roomCode] = {
-      players: [{ id: socket.id, name: hostName || 'Gustavo', isBot: false, energy: 3, grid: [] }],
+      players: [{ id: socket.id, name: hostName || 'Gustavo', isBot: false, energy: 3, grid: [], ready: false }],
       currentTurnIndex: 0,
       rouletteSpun: false,
       gameStarted: false,
@@ -107,7 +108,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (room && room.players.length < 4) {
       const pId = socket.id;
-      room.players.push({ id: pId, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false, energy: 3, grid: [] });
+      room.players.push({ id: pId, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false, energy: 3, grid: [], ready: false });
       room.boardHistories[pId] = {};
 
       socket.join(roomCode);
@@ -121,16 +122,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('player:confirm_fleet', ({ roomCode, grid }) => {
-    const room = rooms[roomCode];
-    if (!room) return;
-
-    const player = room.players.find(p => p.id === socket.id);
-    if (player) {
-      player.grid = grid;
-    }
-  });
-
   socket.on('room:add_bot', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (room && room.players.length < 4) {
@@ -138,7 +129,7 @@ io.on('connection', (socket) => {
       const botId = `bot_${Date.now()}_${botNumber}`;
       const botName = `🤖 Bot ${botNumber}`;
 
-      room.players.push({ id: botId, name: botName, isBot: true, energy: 3, grid: generarFlotaMatriz() });
+      room.players.push({ id: botId, name: botName, isBot: true, energy: 3, grid: generarFlotaBot(), ready: true });
       room.boardHistories[botId] = {};
 
       io.to(roomCode).emit('room:player_update', {
@@ -147,16 +138,26 @@ io.on('connection', (socket) => {
       });
 
       if (room.players.length === 4) {
-        room.gameStarted = true;
-        // Asignar grilla a los humanos que no enviaron grilla manual
-        room.players.forEach(p => {
-          if (!p.grid || p.grid.length === 0) p.grid = generarFlotaMatriz();
-        });
-
-        io.to(roomCode).emit('game:start', {
-          activePlayer: room.players[0]
-        });
+        io.to(roomCode).emit('room:start_placement');
       }
+    }
+  });
+
+  socket.on('player:confirm_fleet', ({ roomCode, grid }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    const player = room.players.find(p => p.id === socket.id);
+    if (player) {
+      player.grid = grid;
+      player.ready = true;
+    }
+
+    // Si todos los humanos confirmaron barcos, arranca el juego
+    const todosListos = room.players.every(p => p.ready);
+    if (todosListos && !room.gameStarted) {
+      room.gameStarted = true;
+      io.to(roomCode).emit('game:start', { activePlayer: room.players[0] });
     }
   });
 
@@ -165,8 +166,7 @@ io.on('connection', (socket) => {
     if (!room) return;
 
     const activePlayer = room.players[room.currentTurnIndex];
-    if (activePlayer.id !== socket.id) return;
-    if (room.rouletteSpun) return;
+    if (activePlayer.id !== socket.id || room.rouletteSpun) return;
 
     room.rouletteSpun = true;
     const targets = room.players.map(p => p.id);
@@ -197,16 +197,13 @@ io.on('connection', (socket) => {
     const activePlayer = room.players[room.currentTurnIndex];
     if (activePlayer.id !== socket.id) return;
 
-    // Descontar energía del costo de la carta
     activePlayer.energy = Math.max(0, activePlayer.energy - (cost || 0));
 
-    // Procesamiento defensivo
     if (type === 'shield') {
       room.boardHistories[socket.id][`${row}_${col}`] = 'shielded';
     } else if (type === 'repair') {
       delete room.boardHistories[socket.id][`${row}_${col}`];
     } else {
-      // Procesamiento ofensivo con chequeo REAL de la grilla del objetivo
       const targetPlayer = room.players.find(p => p.id === targetId);
       if (targetPlayer) {
         const coordsAfectadas: { r: number, c: number }[] = [];
@@ -231,14 +228,13 @@ io.on('connection', (socket) => {
           }
         }
 
-        // Aplicar disparos reales
         if (type !== 'sonar') {
           coordsAfectadas.forEach(({ r, c }) => {
             if (r >= 0 && r < 10 && c >= 0 && c < 10) {
               const key = `${r}_${c}`;
               if (targetPlayer.grid[r][c] !== null) {
                 room.boardHistories[targetId][key] = 'hit';
-                activePlayer.energy = Math.min(10, activePlayer.energy + 1); // +1⚡ por impacto
+                activePlayer.energy = Math.min(10, activePlayer.energy + 1);
               } else {
                 if (!room.boardHistories[targetId][key]) {
                   room.boardHistories[targetId][key] = 'water';
@@ -267,9 +263,7 @@ io.on('connection', (socket) => {
     room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
     const nextPlayer = room.players[room.currentTurnIndex];
 
-    io.to(roomCode).emit('game:turn_changed', {
-      activePlayer: nextPlayer
-    });
+    io.to(roomCode).emit('game:turn_changed', { activePlayer: nextPlayer });
 
     if (nextPlayer.isBot) {
       setTimeout(() => {
@@ -292,12 +286,8 @@ io.on('connection', (socket) => {
     }
   }
 
-  socket.on('disconnect', () => {
-    console.log('❌ Jugador desconectado:', socket.id);
-  });
+  socket.on('disconnect', () => { console.log('❌ Desconectado:', socket.id); });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-  console.log(`🚀 Servidor listo con motor táctico en puerto ${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 Servidor listo en puerto ${PORT}`));

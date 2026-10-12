@@ -65,6 +65,14 @@
       width: 100%;
     }
 
+    .ship-selector {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
     .draggable-ship {
       background-color: #2c3e50;
       color: white;
@@ -227,7 +235,6 @@
     .cell.ship { background-color: #2980b9; }
     .cell.water { background-color: #3498db; color: white; }
     .cell.hit { background-color: #e74c3c; color: white; }
-    .cell.sunk { background-color: #2ecc71; color: black; font-weight: bold; }
     .cell.sonar { background-color: #f1c40f; color: black; }
     .cell.shielded { border: 2px solid #1abc9c; }
   </style>
@@ -247,7 +254,7 @@
     <button class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
   </div>
 
-  <!-- Invitación QR -->
+  <!-- Invitación QR / Link / Bots -->
   <div id="inviteSection" class="invite-card" style="display: none;">
     <p style="margin:2px 0;"><b>¡Sala Creada!</b> Link de invitación:</p>
     <input type="text" id="inviteLinkInput" readonly>
@@ -256,15 +263,31 @@
     <img id="qrCodeImg" src="" alt="QR" style="width: 110px; height: 110px; border-radius: 4px;">
     <hr style="border-color:#333; margin:6px 0;">
     <div id="playerCountText" style="font-weight:bold; font-size:12px; margin-bottom:4px;">Jugadores en sala: 1/4</div>
-    <button class="btn-primary" style="background:#8b5cf6;" onclick="agregarBot()">🤖 Agregar Bot</button>
+    <button class="btn-primary" style="background:#8b5cf6;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
   </div>
 
-  <!-- Cartel Indicador de Turno -->
+  <!-- Fase de Colocación Restaurada -->
+  <div class="invite-card" id="placementPanel" style="display: none;">
+    <h3 style="margin: 0 0 6px 0;">🛠️ Seleccioná un barco y tocá una casilla</h3>
+    <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 6px;">
+      <button class="skill-btn" id="btnToggleRotate" onclick="toggleOrientation()">🔄 Horizontal</button>
+      <button class="skill-btn" style="background:#0284c7;" onclick="ubicarBarcosAleatorios()">🎲 Aleatorio</button>
+      <button class="skill-btn" style="background-color: #c0392b;" onclick="resetPlacement()">🔄 Limpiar</button>
+    </div>
+
+    <div class="ship-selector" id="shipSelector"></div>
+
+    <div style="margin-top: 8px;">
+      <button class="btn-success" id="btnConfirmFleet" onclick="confirmarFlota()" disabled>✅ Confirmar Flota y Empezar</button>
+    </div>
+  </div>
+
+  <!-- Indicador de Turno -->
   <div id="turnBanner" class="turn-banner" style="display: none;">
     🎲 Turno actual: <span id="activePlayerName">Cargando...</span>
   </div>
 
-  <!-- Panel de Habilidades Completo -->
+  <!-- Panel de Habilidades -->
   <div class="skills-panel" id="skillsPanel" style="display: none;">
     <div class="energy-badge">⚡ Energía: <span id="energyValue">3</span>/10</div>
 
@@ -294,17 +317,21 @@
     let currentRoomCode = null;
     let myTurn = false;
     let activePlayerObj = null;
+    let selectedSetupShipId = null;
 
-    let availableShips = [
-      { id: 'carrier', name: 'Portaaviones', length: 4 },
-      { id: 'battleship', name: 'Acorazado', length: 3 },
-      { id: 'cruiser1', name: 'Crucero', length: 3 },
-      { id: 'destroyer', name: 'Destructor', length: 2 },
-      { id: 'patrol1', name: 'Lancha 1', length: 1 },
-      { id: 'patrol2', name: 'Lancha 2', length: 1 }
+    const availableShips = [
+      { id: 'carrier', name: 'Portaaviones 🛳️', length: 4 },
+      { id: 'battleship', name: 'Acorazado 🚢', length: 3 },
+      { id: 'cruiser1', name: 'Crucero A 🚤', length: 3 },
+      { id: 'destroyer', name: 'Destructor ⛵', length: 2 },
+      { id: 'patrol1', name: 'Lancha 1 🛥️', length: 1 },
+      { id: 'patrol2', name: 'Lancha 2 🛥️', length: 1 }
     ];
 
+    let isHorizontal = true;
+    let placedShips = [];
     let myGrid = Array(10).fill(null).map(() => Array(10).fill(null));
+
     let boardHistories = {};
     let selectedSkill = 'basic_shot';
     let myEnergy = 3;
@@ -319,6 +346,11 @@
       const el = document.getElementById('consoleLog');
       el.innerHTML += `<div>> ${msg}</div>`;
       el.scrollTop = el.scrollHeight;
+    }
+
+    function toggleOrientation() {
+      isHorizontal = !isHorizontal;
+      document.getElementById('btnToggleRotate').innerText = `🔄 ${isHorizontal ? 'Horizontal' : 'Vertical'}`;
     }
 
     function toggleShowShips() {
@@ -374,25 +406,137 @@
       enemyPlayers = players.filter(p => p.id !== socket.id);
     });
 
-    socket.on('game:start', ({ activePlayer }) => {
+    socket.on('room:start_placement', () => {
       document.getElementById('inviteSection').style.display = 'none';
+      document.getElementById('placementPanel').style.display = 'block';
+      document.getElementById('boardContainer').style.display = 'block';
+      renderShipSelector();
+      renderSetupBoard();
+    });
+
+    function renderShipSelector() {
+      const container = document.getElementById('shipSelector');
+      container.innerHTML = '';
+
+      availableShips.forEach(s => {
+        const isPlaced = placedShips.some(p => p.id === s.id);
+        const isSelected = selectedSetupShipId === s.id;
+        const div = document.createElement('div');
+        div.className = `draggable-ship ${isPlaced ? 'placed' : ''} ${isSelected ? 'selected' : ''}`;
+        div.innerText = `${s.name} (${s.length})`;
+
+        div.onclick = () => {
+          if (!isPlaced) {
+            selectedSetupShipId = s.id;
+            renderShipSelector();
+          }
+        };
+        container.appendChild(div);
+      });
+
+      document.getElementById('btnConfirmFleet').disabled = (placedShips.length < availableShips.length);
+    }
+
+    function tryPlaceShipManual(r, c) {
+      if (!selectedSetupShipId) return alert('Seleccioná un barco de la lista primero');
+      const shipCfg = availableShips.find(s => s.id === selectedSetupShipId);
+      if (!shipCfg) return;
+
+      const coords = [];
+      for (let i = 0; i < shipCfg.length; i++) {
+        const currR = isHorizontal ? r : r + i;
+        const currC = isHorizontal ? c + i : c;
+
+        if (currR >= 10 || currC >= 10 || myGrid[currR][currC] !== null) {
+          return alert('Posición no válida');
+        }
+        coords.push({ r: currR, c: currC });
+      }
+
+      coords.forEach(coord => { myGrid[coord.r][coord.c] = shipCfg.id; });
+      placedShips.push({ ...shipCfg, coords, isHorizontal });
+      selectedSetupShipId = null;
+
+      renderShipSelector();
+      renderSetupBoard();
+    }
+
+    function ubicarBarcosAleatorios() {
+      resetPlacement();
+      availableShips.forEach(s => {
+        let placed = false;
+        while (!placed) {
+          const r = Math.floor(Math.random() * 10);
+          const c = Math.floor(Math.random() * 10);
+          const orient = Math.random() < 0.5;
+
+          let canPlace = true;
+          let coords = [];
+          for (let i = 0; i < s.length; i++) {
+            let currR = orient ? r : r + i;
+            let currC = orient ? c + i : c;
+            if (currR >= 10 || currC >= 10 || myGrid[currR][currC] !== null) {
+              canPlace = false; break;
+            }
+            coords.push({ r: currR, c: currC });
+          }
+
+          if (canPlace) {
+            coords.forEach(coord => { myGrid[coord.r][coord.c] = s.id; });
+            placedShips.push({ ...s, coords, isHorizontal: orient });
+            placed = true;
+          }
+        }
+      });
+      renderShipSelector();
+      renderSetupBoard();
+    }
+
+    function resetPlacement() {
+      placedShips = [];
+      myGrid = Array(10).fill(null).map(() => Array(10).fill(null));
+      selectedSetupShipId = null;
+      renderShipSelector();
+      renderSetupBoard();
+    }
+
+    function renderSetupBoard() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 10; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+
+          if (myGrid[r][c] !== null) {
+            cell.classList.add('ship');
+            cell.innerText = '🚢';
+          }
+
+          cell.onclick = () => tryPlaceShipManual(r, c);
+          grid.appendChild(cell);
+        }
+      }
+    }
+
+    function confirmarFlota() {
+      if (placedShips.length < availableShips.length) return;
+
+      document.getElementById('placementPanel').style.display = 'none';
+      log('✅ Flota lista. Esperando que los demás confirmen...');
+
+      socket.emit('player:confirm_fleet', { roomCode: currentRoomCode, grid: myGrid });
+    }
+
+    socket.on('game:start', ({ activePlayer }) => {
+      document.getElementById('placementPanel').style.display = 'none';
       document.getElementById('turnBanner').style.display = 'block';
       document.getElementById('skillsPanel').style.display = 'flex';
       document.getElementById('tabBar').style.display = 'flex';
-      document.getElementById('boardContainer').style.display = 'block';
 
-      ubicarBarcosDefault();
-      socket.emit('player:confirm_fleet', { roomCode: currentRoomCode, grid: myGrid });
       actualizarTurno(activePlayer);
     });
-
-    function ubicarBarcosDefault() {
-      availableShips.forEach((s, idx) => {
-        for (let i = 0; i < s.length; i++) {
-          myGrid[idx * 1 + i][idx] = s.id;
-        }
-      });
-    }
 
     function actualizarTurno(activePlayer) {
       activePlayerObj = activePlayer;
