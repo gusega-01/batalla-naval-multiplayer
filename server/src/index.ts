@@ -18,7 +18,7 @@ const io = new Server(server, {
 const clientPath = path.resolve(process.cwd(), '../client');
 app.use(express.static(clientPath));
 
-app.get('*', (req, res) => {
+app.get('{*splat}', (req, res) => {
   res.sendFile(path.join(clientPath, 'index.html'));
 });
 
