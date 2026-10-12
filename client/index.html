@@ -8,83 +8,120 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
-    <title>Batalla Naval - Multijugador (4 Jugadores)</title>
+    <title>Batalla Naval - Multijugador Táctico</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
+        * { box-sizing: border-box; }
         body {
-            background-color: #121212;
+            background-color: #0f172a;
             color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 10px;
+            padding: 8px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        h1 { margin: 10px 0; font-size: 1.5rem; }
+        h1 { margin: 5px 0; font-size: 1.3rem; text-align: center; }
 
         .invite-card {
             background: #1e293b;
             border: 1px solid #334155;
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
             text-align: center;
-            margin-bottom: 15px;
-            width: 90%;
-            max-width: 400px;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 450px;
         }
 
         .invite-card input {
             width: 85%;
-            padding: 8px;
+            padding: 6px;
             background: #0f172a;
             border: 1px solid #475569;
             color: #fff;
             border-radius: 4px;
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
+        /* Botones Compactos */
         .btn-copy {
-            padding: 8px 12px;
+            padding: 6px 10px;
             background: #2563eb;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin-top: 5px;
             font-weight: bold;
+            font-size: 0.85rem;
         }
 
-        .roulette-box {
-            background: #0f172a;
-            border: 2px solid #3b82f6;
-            padding: 10px;
+        /* Panel de Ruleta y Energía Compacto */
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            border: 1px solid #38bdf8;
+            padding: 8px 12px;
             border-radius: 8px;
-            text-align: center;
-            width: 90%;
-            max-width: 400px;
-            margin-bottom: 10px;
+            width: 100%;
+            max-width: 450px;
+            margin-bottom: 8px;
         }
 
-        .enemy-selector {
+        .energy-bar {
+            color: #facc15;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        /* Pestañas para Celulares Compactas */
+        .board-tabs {
             display: flex;
             gap: 6px;
-            margin: 10px 0;
+            margin-bottom: 8px;
             width: 100%;
-            max-width: 400px;
-            justify-content: center;
+            max-width: 450px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 6px;
+            border: none;
+            background: #334155;
+            color: #94a3b8;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .tab-btn.active {
+            background: #0284c7;
+            color: #ffffff;
+        }
+
+        /* Botonera de Seleccionar Rival Compacta */
+        .enemy-selector {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+            width: 100%;
+            max-width: 450px;
         }
 
         .enemy-btn {
             flex: 1;
-            padding: 8px;
+            padding: 5px;
             background: #334155;
             border: 1px solid #475569;
             color: #fff;
-            border-radius: 6px;
-            font-size: 0.8rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
             cursor: pointer;
             font-weight: bold;
         }
@@ -94,96 +131,44 @@
             border-color: #ef4444;
         }
 
-        .cards-container {
+        /* TABLERO AGRANDADO */
+        .boards-container {
             display: flex;
-            gap: 8px;
-            margin: 10px 0;
+            flex-direction: column;
+            align-items: center;
             width: 100%;
-            max-width: 400px;
-            justify-content: center;
-        }
-
-        .card {
-            background: #1e1b4b;
-            border: 1px solid #6366f1;
-            border-radius: 6px;
-            padding: 8px;
-            font-size: 0.75rem;
-            text-align: center;
-            cursor: pointer;
-            flex: 1;
-        }
-
-        .card:hover { background: #312e81; }
-
-        .board-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-            width: 100%;
-            max-width: 400px;
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            background: #334155;
-            color: #94a3b8;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .tab-btn.active {
-            background: #0284c7;
-            color: #ffffff;
+            max-width: 450px;
         }
 
         .board-box {
             display: none;
             width: 100%;
-            max-width: 350px;
             text-align: center;
         }
 
         .board-box.active { display: block; }
 
-        #consoleLog {
-            background: #0f172a;
-            border: 1px solid #334155;
-            padding: 8px;
-            border-radius: 6px;
-            font-family: monospace;
-            min-height: 20px;
-            margin-bottom: 10px;
-            width: 90%;
-            max-width: 400px;
-            font-size: 0.85rem;
-            text-align: center;
-        }
-
         .grid {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
-            gap: 2px;
+            gap: 3px;
             background: #334155;
-            padding: 2px;
-            border-radius: 6px;
+            padding: 4px;
+            border-radius: 8px;
             aspect-ratio: 1;
             width: 100%;
-            max-width: 350px;
+            max-width: 440px; /* Agrandado significativamente */
             margin: 0 auto;
         }
 
         .cell {
             background: #1e293b;
-            border-radius: 2px;
+            border-radius: 3px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             user-select: none;
         }
 
@@ -191,18 +176,55 @@
         .cell.ship { background: #0284c7; }
         .cell.hit { background: #ef4444; }
         .cell.miss { background: #64748b; }
+
+        /* Panel de Cartas de Poder / Ataques Especiales */
+        .cards-container {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            width: 100%;
+            max-width: 450px;
+            justify-content: space-between;
+        }
+
+        .card {
+            background: #1e1b4b;
+            border: 1px solid #6366f1;
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 0.75rem;
+            text-align: center;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .card:hover { background: #312e81; }
+        .card.disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #consoleLog {
+            background: #0f172a;
+            border: 1px solid #334155;
+            padding: 6px;
+            border-radius: 6px;
+            font-family: monospace;
+            margin-bottom: 8px;
+            width: 100%;
+            max-width: 450px;
+            font-size: 0.8rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
-    <h1>🎮 Batalla Naval (4 Jugadores)</h1>
+    <h1>🎮 Batalla Naval Táctica</h1>
 
     <!-- Menú Inicial con Apodo obligatorio -->
     <div id="setupMenu" class="invite-card">
-        <h3>Tu Apodo para la Sala</h3>
+        <h3 style="margin:5px 0;">Tu Apodo para la Sala</h3>
         <input type="text" id="playerNameInput" placeholder="Ej: Gustavo, Leo, etc." maxlength="12">
-        <hr style="border-color:#334155; margin:15px 0;">
-        <button class="btn-copy" style="background:#16a34a; width:100%; font-size:1.1rem;" onclick="crearSala()">✨ Crear Nueva Sala</button>
+        <hr style="border-color:#334155; margin:10px 0;">
+        <button class="btn-copy" style="background:#16a34a; width:100%; padding:8px;" onclick="crearSala()">✨ Crear Nueva Sala</button>
         <br><br>
         <input type="text" id="roomCodeInput" placeholder="Código de Sala">
         <button class="btn-copy" style="width:100%;" onclick="unirseASala()">Unirse a Sala</button>
@@ -210,53 +232,51 @@
 
     <!-- Sección de Invitaciones y Bots -->
     <div id="inviteSection" class="invite-card" style="display: none;">
-        <p style="margin-top:0;"><b>¡Sala Creada!</b> Compartí este link:</p>
+        <p style="margin:0;"><b>¡Sala Creada!</b> Link de invitación:</p>
         <input type="text" id="inviteLinkInput" readonly>
         <button class="btn-copy" onclick="copiarLink()">📋 Copiar Link</button>
         <br><br>
-        <p style="margin-bottom:5px;">O escaneen este QR:</p>
-        <img id="qrCodeImg" src="" alt="QR Sala" style="width: 140px; height: 140px; border-radius: 6px;">
+        <img id="qrCodeImg" src="" alt="QR Sala" style="width: 120px; height: 120px; border-radius: 6px;">
         
-        <hr style="border-color:#334155; margin:12px 0;">
-        <div id="playerCountText" style="font-weight:bold; margin-bottom:8px;">Jugadores en sala: 1/4</div>
+        <hr style="border-color:#334155; margin:8px 0;">
+        <div id="playerCountText" style="font-weight:bold; margin-bottom:5px;">Jugadores en sala: 1/4</div>
         <button class="btn-copy" style="background:#8b5cf6; width:100%;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
     </div>
 
-    <!-- Panel de Ruleta de Turnos y Consola -->
-    <div id="roulettePanel" class="roulette-box" style="display: none;">
-        <div style="font-size:0.8rem; color:#94a3b8;">🎯 RULETA DE TURNOS</div>
-        <div id="activePlayerText" style="font-size:1.2rem; font-weight:bold; color:#f59e0b; margin:4px 0;">Esperando...</div>
+    <!-- Cabecera de Ruleta y Energía -->
+    <div id="statusHeader" class="status-header" style="display: none;">
+        <div>🎲 Turno: <b id="activePlayerText" style="color:#f59e0b;">Esperando...</b></div>
+        <div class="energy-bar">⚡ Energía: <span id="energyVal">10</span>/10</div>
     </div>
 
     <div id="consoleLog">Ingresá tu apodo para empezar</div>
 
-    <!-- Pestañas para Celulares -->
+    <!-- Pestañas Celulares (Compactas) -->
     <div class="board-tabs" id="boardTabs" style="display: none;">
         <button class="tab-btn active" id="tabMyBoard" onclick="switchBoard('myBoard')">🛡️ Mi Flota</button>
         <button class="tab-btn" id="tabEnemyBoard" onclick="switchBoard('enemyBoard')">🎯 Radar Enemigo</button>
     </div>
 
-    <!-- Cartas / Ataques Especiales -->
-    <div id="cardsPanel" class="cards-container" style="display: none;">
-        <div class="card" onclick="usarCarta('bomba')">💣 Bomba 2x2</div>
-        <div class="card" onclick="usarCarta('radar')">📡 Radar Revelador</div>
-        <div class="card" onclick="usarCarta('linea')">🚀 Disparo en Línea</div>
-    </div>
-
-    <!-- Botonera para Seleccionar el Radar de cada Rival -->
+    <!-- Seleccionador de Rival (Botonera Compacta) -->
     <div id="enemySelector" class="enemy-selector" style="display: none;"></div>
 
-    <!-- Contenedor de Tableros -->
+    <!-- TABLEROS AGRANDADOS -->
     <div class="boards-container">
         <div id="myBoardContainer" class="board-box">
-            <h3>Mi Tablero</h3>
             <div id="myGrid" class="grid"></div>
         </div>
 
         <div id="enemyBoardContainer" class="board-box">
-            <h3 id="enemyTitle">Radar Enemigo</h3>
             <div id="enemyGrid" class="grid"></div>
         </div>
+    </div>
+
+    <!-- Pestañas / Cartas de Poder Reincorporadas -->
+    <div id="cardsPanel" class="cards-container" style="display: none;">
+        <div class="card" onclick="usarCarta('bomba', 3)">💣 Bomba 2x2<br><small>(⚡3)</small></div>
+        <div class="card" onclick="usarCarta('radar', 2)">📡 Radar<br><small>(⚡2)</small></div>
+        <div class="card" onclick="usarCarta('linea', 4)">🚀 Disparo Línea<br><small>(⚡4)</small></div>
+        <div class="card" style="border-color:#10b981;" onclick="reponerEnergia()">⚡ Recargar</div>
     </div>
 
     <script>
@@ -264,7 +284,8 @@
         let currentRoomCode = null;
         let selectedEnemyId = null;
         let enemyPlayers = [];
-        let myPlayerId = null;
+        let myEnergy = 10;
+        let selectedPower = 'simple';
 
         function getPlayerName() {
             const name = document.getElementById('playerNameInput').value.trim();
@@ -328,9 +349,8 @@
             socket.emit('room:add_bot', { roomCode: code });
         }
 
-        socket.on('room:created', ({ roomCode, playerId }) => {
+        socket.on('room:created', ({ roomCode }) => {
             currentRoomCode = roomCode;
-            myPlayerId = playerId;
             document.getElementById('setupMenu').style.display = 'none';
             const inviteUrl = `${window.location.origin}?room=${roomCode}`;
             document.getElementById('inviteLinkInput').value = inviteUrl;
@@ -339,9 +359,8 @@
             document.getElementById('consoleLog').innerText = `Sala ${roomCode} creada. Agregá bots o compartí el link.`;
         });
 
-        socket.on('room:joined', ({ roomCode, playerId }) => {
+        socket.on('room:joined', ({ roomCode }) => {
             currentRoomCode = roomCode;
-            myPlayerId = playerId;
             document.getElementById('setupMenu').style.display = 'none';
             document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando a los demás...`;
         });
@@ -370,7 +389,6 @@
             });
             if (enemyPlayers.length > 0) {
                 selectedEnemyId = enemyPlayers[0].id;
-                document.getElementById('enemyTitle').innerText = `Radar de: ${enemyPlayers[0].name}`;
             }
         }
 
@@ -378,35 +396,69 @@
             selectedEnemyId = id;
             document.querySelectorAll('.enemy-btn').forEach(b => b.classList.remove('active'));
             btnEl.classList.add('active');
-            document.getElementById('enemyTitle').innerText = `Radar de: ${name}`;
             initGrids();
         }
 
         socket.on('game:start', () => {
             iniciarPantallaJuego();
-            document.getElementById('consoleLog').innerText = `¡Comienza la partida de 4 jugadores!`;
+            document.getElementById('consoleLog').innerText = `¡Comienza la partida táctica de 4 jugadores!`;
         });
 
         socket.on('game:turn', ({ activePlayer }) => {
-            document.getElementById('activePlayerText').innerText = `🎲 ${activePlayer}`;
+            document.getElementById('activePlayerText').innerText = activePlayer;
             document.getElementById('consoleLog').innerText = `Turno de: ${activePlayer}`;
         });
 
-        function disparar(row, col, cellEl) {
-            if (!selectedEnemyId) return alert('Seleccioná un rival primero');
-            cellEl.classList.add('miss');
-            socket.emit('game:action', { roomCode: currentRoomCode, targetId: selectedEnemyId, row, col });
+        function usarCarta(poder, costo) {
+            if (myEnergy < costo) {
+                alert('⚡ No tenés suficiente energía');
+                return;
+            }
+            selectedPower = poder;
+            alert(`Poder activado: ${poder.toUpperCase()} (Costo: ⚡${costo}). Tocá una celda del radar.`);
         }
 
-        function usarCarta(tipo) {
-            alert(`Activaste la carta: ${tipo.toUpperCase()}`);
-            socket.emit('game:use_card', { roomCode: currentRoomCode, card: tipo });
+        function reponerEnergia() {
+            if (myEnergy < 10) {
+                myEnergy = Math.min(10, myEnergy + 3);
+                document.getElementById('energyVal').innerText = myEnergy;
+                document.getElementById('consoleLog').innerText = `⚡ Recargaste 3 puntos de energía.`;
+            }
+        }
+
+        function disparar(row, col, cellEl) {
+            if (!selectedEnemyId) return alert('Seleccioná un rival primero');
+            
+            // Costo estándar disparo simple
+            let costo = 1;
+            if (selectedPower === 'bomba') costo = 3;
+            if (selectedPower === 'radar') costo = 2;
+            if (selectedPower === 'linea') costo = 4;
+
+            if (myEnergy < costo) {
+                alert('⚡ No tenés suficiente energía para este ataque');
+                return;
+            }
+
+            myEnergy -= costo;
+            document.getElementById('energyVal').innerText = myEnergy;
+            cellEl.classList.add('miss');
+
+            socket.emit('game:action', { 
+                roomCode: currentRoomCode, 
+                targetId: selectedEnemyId, 
+                row, 
+                col, 
+                power: selectedPower 
+            });
+
+            selectedPower = 'simple'; // Reset a disparo normal
         }
 
         function iniciarPantallaJuego() {
             document.getElementById('setupMenu').style.display = 'none';
             document.getElementById('inviteSection').style.display = 'none';
-            document.getElementById('roulettePanel').style.display = 'block';
+            document.getElementById('statusHeader').style.display = 'flex';
             document.getElementById('cardsPanel').style.display = 'flex';
             document.getElementById('enemySelector').style.display = 'flex';
             document.getElementById('boardTabs').style.display = 'flex';

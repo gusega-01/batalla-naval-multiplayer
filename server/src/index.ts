@@ -57,7 +57,6 @@ io.on('connection', (socket) => {
       socket.join(roomCode);
       socket.emit('room:created', { roomCode, playerId: socket.id });
 
-      // Avisamos inmediatamente al creador sobre la lista de jugadores (1/4)
       io.to(roomCode).emit('room:player_update', { 
         count: rooms[roomCode].players.length,
         players: rooms[roomCode].players
@@ -115,15 +114,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('game:action', ({ roomCode, targetId, row, col }) => {
+  socket.on('game:action', ({ roomCode, targetId, row, col, power }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
+    // Rotar ruleta de turnos al siguiente jugador
     room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
     const nextPlayer = room.players[room.currentTurnIndex];
 
     io.to(roomCode).emit('game:turn', { activePlayer: nextPlayer.name });
 
+    // Si le toca el turno a un Bot, simula su ataque a los 1.5s
     if (nextPlayer.isBot) {
       setTimeout(() => {
         room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
@@ -140,5 +141,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor listo en puerto ${PORT}`);
+  console.log(`🚀 Servidor listo con tablero táctico y cartas en puerto ${PORT}`);
 });
