@@ -1,234 +1,85 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <!-- Configuración PWA / App Móvil -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta charset="UTF-8">
-    <title>Batalla Naval - Multijugador</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <style>
-        body {
-            background-color: #121212;
-            color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+<script>
+    const socket = io('https://batalla-naval-multiplayer-4zh3.onrender.com');
+    let currentRoomCode = null;
+
+    // Autounirse si entra desde un Link de invitación (?room=CODIGO)
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomFromUrl = urlParams.get('room');
+        if (roomFromUrl) {
+            document.getElementById('roomCodeInput').value = roomFromUrl;
+            document.getElementById('consoleLog').innerText = `Uniéndose a la sala: ${roomFromUrl}...`;
+            unirseASala();
         }
+    });
 
-        h1 { margin: 10px 0; font-size: 1.5rem; }
+    function crearSala() {
+        socket.emit('room:create', { hostName: 'Jugador 1' });
+    }
 
-        .invite-card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 15px;
-            width: 90%;
-            max-width: 400px;
+    function unirseASala() {
+        const code = document.getElementById('roomCodeInput').value.trim();
+        if (!code) return alert('Ingresá un código válido');
+        socket.emit('room:join', { roomCode: code, playerName: 'Jugador 2' });
+    }
+
+    // 1. El Creador recibe la confirmación de sala creada
+    socket.on('room:created', ({ roomCode }) => {
+        currentRoomCode = roomCode;
+        document.getElementById('setupMenu').style.display = 'none';
+        
+        // Mostrar tarjeta de invitación y QR
+        const inviteUrl = `${window.location.origin}?room=${roomCode}`;
+        document.getElementById('inviteLinkInput').value = inviteUrl;
+        document.getElementById('qrCodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(inviteUrl)}&size=200`;
+        document.getElementById('inviteSection').style.display = 'block';
+        document.getElementById('consoleLog').innerText = `Sala creada: ${roomCode}. Esperando rival...`;
+    });
+
+    // 2. El Invitado recibe la confirmación al unirse
+    socket.on('room:joined', ({ roomCode }) => {
+        currentRoomCode = roomCode;
+        iniciarPantallaJuego();
+        document.getElementById('consoleLog').innerText = `¡Te uniste a la sala ${roomCode}! Acomodá tu flota.`;
+        switchBoard('myBoard');
+    });
+
+    // 3. El Creador detecta que el Rival ya entró (se oculta el QR y arranca la partida)
+    socket.on('room:opponent_joined', ({ message }) => {
+        iniciarPantallaJuego();
+        document.getElementById('consoleLog').innerText = `¡El rival se ha conectado! Acomodá tu flota.`;
+        switchBoard('myBoard');
+    });
+
+    function iniciarPantallaJuego() {
+        document.getElementById('setupMenu').style.display = 'none';
+        document.getElementById('inviteSection').style.display = 'none'; // Oculta el QR y el link
+        document.getElementById('boardTabs').style.display = 'flex';     // Muestra las pestañas
+    }
+
+    function copiarLink() {
+        const copyText = document.getElementById('inviteLinkInput');
+        copyText.select();
+        navigator.clipboard.writeText(copyText.value);
+        alert('¡Link de invitación copiado!');
+    }
+
+    function switchBoard(tab) {
+        const myBoard = document.getElementById('myBoardContainer');
+        const enemyBoard = document.getElementById('enemyBoardContainer');
+        const tabMy = document.getElementById('tabMyBoard');
+        const tabEnemy = document.getElementById('tabEnemyBoard');
+
+        if (tab === 'myBoard') {
+            myBoard.classList.add('active');
+            enemyBoard.classList.remove('active');
+            tabMy.classList.add('active');
+            tabEnemy.classList.remove('active');
+        } else {
+            enemyBoard.classList.add('active');
+            myBoard.classList.remove('active');
+            tabEnemy.classList.add('active');
+            tabMy.classList.remove('active');
         }
-
-        .invite-card input {
-            width: 80%;
-            padding: 8px;
-            background: #0f172a;
-            border: 1px solid #475569;
-            color: #fff;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        .btn-copy {
-            padding: 8px 12px;
-            background: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 8px;
-            font-weight: bold;
-        }
-
-        /* Pestañas para Celulares */
-        .board-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            width: 100%;
-            max-width: 400px;
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            background: #334155;
-            color: #94a3b8;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .tab-btn.active {
-            background: #0284c7;
-            color: #ffffff;
-        }
-
-        .boards-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-        }
-
-        .board-box {
-            display: none;
-            width: 100%;
-            max-width: 350px;
-            text-align: center;
-        }
-
-        .board-box.active {
-            display: block;
-        }
-
-        /* Estilos generales para los paneles */
-        #consoleLog {
-            background: #0f172a;
-            border: 1px solid #334155;
-            padding: 8px;
-            border-radius: 6px;
-            font-family: monospace;
-            min-height: 20px;
-            margin-bottom: 10px;
-            width: 90%;
-            max-width: 400px;
-            font-size: 0.85rem;
-        }
-    </style>
-</head>
-<body>
-
-    <h1>🎮 Batalla Naval</h1>
-
-    <!-- Sección de Invitaciones por Link / QR -->
-    <div id="inviteSection" class="invite-card" style="display: none;">
-        <p style="margin-top:0;"><b>¡Sala Creada!</b> Compartí este link:</p>
-        <input type="text" id="inviteLinkInput" readonly>
-        <button class="btn-copy" onclick="copiarLink()">📋 Copiar Link</button>
-        <br><br>
-        <p style="margin-bottom:5px;">O que escaneen este QR:</p>
-        <img id="qrCodeImg" src="" alt="QR Sala" style="width: 150px; height: 150px; border-radius: 6px;">
-    </div>
-
-    <!-- Menú de entrada inicial -->
-    <div id="setupMenu" class="invite-card">
-        <button class="btn-copy" style="background:#16a34a; width:100%; font-size:1.1rem;" onclick="crearSala()">✨ Crear Nueva Sala</button>
-        <hr style="border-color:#334155; margin:15px 0;">
-        <input type="text" id="roomCodeInput" placeholder="Código de Sala">
-        <button class="btn-copy" style="width:100%; margin-top:8px;" onclick="unirseASala()">Unirse a Sala</button>
-    </div>
-
-    <div id="consoleLog">Esperando acción...</div>
-
-    <!-- Pestañas para alternar tableros en celular -->
-    <div class="board-tabs" id="boardTabs" style="display: none;">
-        <button class="tab-btn active" id="tabMyBoard" onclick="switchBoard('myBoard')">🛡️ Mi Flota</button>
-        <button class="tab-btn" id="tabEnemyBoard" onclick="switchBoard('enemyBoard')">🎯 Radar Enemigo</button>
-    </div>
-
-    <!-- Contenedor de Tableros -->
-    <div class="boards-container">
-        <div id="myBoardContainer" class="board-box active">
-            <h3>Mi Tablero</h3>
-            <div id="myGrid"></div>
-        </div>
-
-        <div id="enemyBoardContainer" class="board-box">
-            <h3>Radar Enemigo</h3>
-            <div id="enemyGrid"></div>
-        </div>
-    </div>
-
-    <script>
-        const socket = io('https://batalla-naval-multiplayer-4zh3.onrender.com');
-        let currentRoomCode = null;
-
-        // Autounirse si entra desde un Link de invitación (?room=CODIGO)
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomFromUrl = urlParams.get('room');
-            if (roomFromUrl) {
-                document.getElementById('roomCodeInput').value = roomFromUrl;
-                document.getElementById('consoleLog').innerText = `Uniéndose a la sala: ${roomFromUrl}...`;
-                unirseASala();
-            }
-        });
-
-        function crearSala() {
-            socket.emit('room:create', { hostName: 'Jugador 1' });
-        }
-
-        function unirseASala() {
-            const code = document.getElementById('roomCodeInput').value.trim();
-            if (!code) return alert('Ingresá un código válido');
-            socket.emit('room:join', { roomCode: code, playerName: 'Jugador 2' });
-        }
-
-        socket.on('room:created', ({ roomCode }) => {
-            currentRoomCode = roomCode;
-            document.getElementById('setupMenu').style.display = 'none';
-            document.getElementById('boardTabs').style.display = 'flex';
-            
-            // Mostrar tarjeta de invitación y QR
-            const inviteUrl = `${window.location.origin}?room=${roomCode}`;
-            document.getElementById('inviteLinkInput').value = inviteUrl;
-            document.getElementById('qrCodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(inviteUrl)}&size=200`;
-            document.getElementById('inviteSection').style.display = 'block';
-            document.getElementById('consoleLog').innerText = `Sala creada: ${roomCode}. Esperando rival...`;
-        });
-
-        socket.on('room:joined', ({ roomCode }) => {
-            currentRoomCode = roomCode;
-            document.getElementById('setupMenu').style.display = 'none';
-            document.getElementById('inviteSection').style.display = 'none';
-            document.getElementById('boardTabs').style.display = 'flex';
-            document.getElementById('consoleLog').innerText = `¡Te uniste a la sala ${roomCode}! Que empiece el juego.`;
-            switchBoard('enemyBoard'); // Por defecto al unirse va al radar
-        });
-
-        function copiarLink() {
-            const copyText = document.getElementById('inviteLinkInput');
-            copyText.select();
-            navigator.clipboard.writeText(copyText.value);
-            alert('¡Link de invitación copiado!');
-        }
-
-        function switchBoard(tab) {
-            const myBoard = document.getElementById('myBoardContainer');
-            const enemyBoard = document.getElementById('enemyBoardContainer');
-            const tabMy = document.getElementById('tabMyBoard');
-            const tabEnemy = document.getElementById('tabEnemyBoard');
-
-            if (tab === 'myBoard') {
-                myBoard.classList.add('active');
-                enemyBoard.classList.remove('active');
-                tabMy.classList.add('active');
-                tabEnemy.classList.remove('active');
-            } else {
-                enemyBoard.classList.add('active');
-                myBoard.classList.remove('active');
-                tabEnemy.classList.add('active');
-                tabMy.classList.remove('active');
-            }
-        }
-    </script>
-</body>
-</html>
+    }
+</script>
