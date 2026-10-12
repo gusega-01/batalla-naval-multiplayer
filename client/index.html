@@ -88,6 +88,19 @@
     .draggable-ship.selected { background-color: #2980b9; border-style: solid; }
     .draggable-ship.placed { opacity: 0.4; cursor: not-allowed; border-style: solid; border-color: #34495e; }
 
+    /* ANIMACIONES Y EFECTOS TITILANTES */
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 4px #f1c40f; transform: scale(1); }
+      50% { box-shadow: 0 0 16px #f1c40f; transform: scale(1.04); }
+      100% { box-shadow: 0 0 4px #f1c40f; transform: scale(1); }
+    }
+
+    @keyframes pulseTab {
+      0% { border-color: #f1c40f; color: #f1c40f; }
+      50% { border-color: #38bdf8; color: #38bdf8; }
+      100% { border-color: #f1c40f; color: #f1c40f; }
+    }
+
     .turn-banner {
       background: #1e1b4b;
       border: 2px solid #6366f1;
@@ -99,6 +112,11 @@
       max-width: 480px;
       margin-bottom: 8px;
       color: #f1c40f;
+    }
+
+    .turn-banner.my-turn-active {
+      animation: pulseGlow 1.2s infinite ease-in-out;
+      border-color: #f1c40f;
     }
 
     .skills-panel {
@@ -150,7 +168,12 @@
       font-size: 12px;
     }
 
-    .roulette-btn:disabled { background-color: #555; cursor: not-allowed; }
+    .roulette-btn.pulse-roulette {
+      animation: pulseGlow 1s infinite ease-in-out;
+      background-color: #a855f7;
+    }
+
+    .roulette-btn:disabled { background-color: #555; cursor: not-allowed; animation: none; }
 
     .target-badge {
       background-color: #2c3e50;
@@ -200,7 +223,7 @@
     }
 
     .tab-btn.active { background: #007bff; color: #fff; border-color: #0056b3; }
-    .tab-btn.target-locked { border-color: #f1c40f; color: #f1c40f; }
+    .tab-btn.target-locked { animation: pulseTab 1s infinite ease-in-out; }
 
     .board-container {
       width: 100%;
@@ -240,6 +263,17 @@
     .cell.shielded { border: 2px solid #1abc9c; }
     .cell.drag-over { background-color: #8e44ad !important; }
     .cell.selected-move { border: 2px solid #f1c40f; }
+
+    .winner-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
   </style>
 </head>
 <body>
@@ -285,7 +319,7 @@
     </div>
   </div>
 
-  <!-- Indicador de Turno -->
+  <!-- Indicador de Turno Titilante -->
   <div id="turnBanner" class="turn-banner" style="display: none;">
     🎲 Turno actual: <span id="activePlayerName">Cargando...</span>
   </div>
@@ -313,6 +347,13 @@
 
   <div class="board-container" id="boardContainer" style="display: none;">
     <div id="grid" class="grid"></div>
+  </div>
+
+  <!-- Cartel de Victoria Modal -->
+  <div id="winnerModal" class="winner-modal" style="display: none;">
+    <h1 style="color: #f1c40f; font-size: 2rem; margin-bottom: 10px;">🏆 ¡VICTORIA! 🏆</h1>
+    <h2 id="winnerText" style="color: #fff; margin-bottom: 20px;"></h2>
+    <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="window.location.reload()">🔄 Jugar Otra Partida</button>
   </div>
 
   <script>
@@ -547,13 +588,23 @@
       activePlayerObj = activePlayer;
       myTurn = (activePlayer.id === socket.id);
       
+      const turnBanner = document.getElementById('turnBanner');
       const turnEl = document.getElementById('activePlayerName');
+      const btnRoulette = document.getElementById('btnRoulette');
+
       turnEl.innerText = myTurn ? '¡TU TURNO! 🎯' : activePlayer.name;
 
-      document.getElementById('btnRoulette').disabled = !myTurn || rouletteSpun;
-
-      if (!myTurn) log(`⏳ Turno de <b>${activePlayer.name}</b>.`);
-      else log(`✨ <b>¡ES TU TURNO!</b> Girá la ruleta.`);
+      if (myTurn) {
+        turnBanner.classList.add('my-turn-active');
+        btnRoulette.classList.add('pulse-roulette');
+        btnRoulette.disabled = rouletteSpun;
+        log(`✨ <b>¡ES TU TURNO!</b> Girá la ruleta.`);
+      } else {
+        turnBanner.classList.remove('my-turn-active');
+        btnRoulette.classList.remove('pulse-roulette');
+        btnRoulette.disabled = true;
+        log(`⏳ Turno de <b>${activePlayer.name}</b>.`);
+      }
 
       renderTabs();
       renderActiveBoard();
@@ -574,7 +625,9 @@
 
     socket.on('game:roulette_result', ({ targetId, isFreeChoice: free, targetName }) => {
       rouletteSpun = true;
-      document.getElementById('btnRoulette').disabled = true;
+      const btnRoulette = document.getElementById('btnRoulette');
+      btnRoulette.disabled = true;
+      btnRoulette.classList.remove('pulse-roulette');
 
       if (free) {
         isFreeChoice = true;
@@ -596,6 +649,13 @@
         document.getElementById('energyValue').innerText = myEnergy;
       }
       renderActiveBoard();
+    });
+
+    socket.on('game:over', ({ winnerName, winnerId }) => {
+      const modal = document.getElementById('winnerModal');
+      const text = document.getElementById('winnerText');
+      text.innerText = winnerId === socket.id ? '¡Ganaste la partida, sos el rey del mar!' : `El ganador es: ${winnerName}`;
+      modal.style.display = 'flex';
     });
 
     function setSkill(skill) {
@@ -626,7 +686,9 @@
 
       enemyPlayers.forEach(p => {
         if (!boardHistories[p.id]) boardHistories[p.id] = {};
-        const isLockedTarget = myTurn && (isFreeChoice || currentTargetId === p.id);
+        
+        // EFECTO TITILANTE EN LAS PESTAÑAS OBJETIVO
+        const isLockedTarget = myTurn && rouletteSpun && (isFreeChoice || currentTargetId === p.id);
 
         const btn = document.createElement('button');
         btn.className = 'tab-btn' + (activeTabId === p.id ? ' active' : '') + (isLockedTarget ? ' target-locked' : '');
@@ -672,7 +734,6 @@
               if (state === 'hit') cell.innerText = '💥';
               if (state === 'water') cell.innerText = '•';
               if (state === 'sunk') cell.innerText = '☠️';
-              // EL ESCUDO SOLO ES VISIBLE EN TU PROPIA PANTALLA
               if (state === 'shielded') cell.classList.add('shielded');
             }
 
@@ -699,7 +760,6 @@
           } else {
             const state = boardHistories[activeTabId][key];
             if (state) {
-              // NO MOSTRAR 'shielded' A LOS RIVALES
               if (state !== 'shielded') {
                 cell.classList.add(state);
                 if (state === 'hit') cell.innerText = '💥';
