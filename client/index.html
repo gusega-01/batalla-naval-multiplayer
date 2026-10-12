@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Batalla Naval - Sincronizado en Vivo</title>
+  <title>Batalla Naval Táctica - 4 Jugadores</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
@@ -64,6 +64,21 @@
       cursor: pointer;
       width: 100%;
     }
+
+    .draggable-ship {
+      background-color: #2c3e50;
+      color: white;
+      border: 2px dashed #f1c40f;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .draggable-ship.selected { background-color: #2980b9; border-style: solid; }
+    .draggable-ship.placed { opacity: 0.4; cursor: not-allowed; border-style: solid; border-color: #34495e; }
 
     .turn-banner {
       background: #1e1b4b;
@@ -212,12 +227,14 @@
     .cell.ship { background-color: #2980b9; }
     .cell.water { background-color: #3498db; color: white; }
     .cell.hit { background-color: #e74c3c; color: white; }
+    .cell.sunk { background-color: #2ecc71; color: black; font-weight: bold; }
+    .cell.sonar { background-color: #f1c40f; color: black; }
     .cell.shielded { border: 2px solid #1abc9c; }
   </style>
 </head>
 <body>
 
-  <h1>🚢 Batalla Naval Táctica</h1>
+  <h1>🚢 Batalla Naval Táctica (4 Jugadores)</h1>
 
   <!-- Menú Inicial -->
   <div id="setupMenu" class="invite-card">
@@ -247,7 +264,7 @@
     🎲 Turno actual: <span id="activePlayerName">Cargando...</span>
   </div>
 
-  <!-- Panel de Habilidades -->
+  <!-- Panel de Habilidades Completo -->
   <div class="skills-panel" id="skillsPanel" style="display: none;">
     <div class="energy-badge">⚡ Energía: <span id="energyValue">3</span>/10</div>
 
@@ -296,11 +313,19 @@
     let isFreeChoice = false;
     let activeTabId = 'my';
     let enemyPlayers = [];
+    let showMyShips = true;
 
     function log(msg) {
       const el = document.getElementById('consoleLog');
       el.innerHTML += `<div>> ${msg}</div>`;
       el.scrollTop = el.scrollHeight;
+    }
+
+    function toggleShowShips() {
+      showMyShips = !showMyShips;
+      log(showMyShips ? '👁️ Barcos visibles.' : '🙈 Barcos ocultos.');
+      renderTabs();
+      renderActiveBoard();
     }
 
     function getPlayerName() {
@@ -356,8 +381,8 @@
       document.getElementById('tabBar').style.display = 'flex';
       document.getElementById('boardContainer').style.display = 'block';
 
-      // Flota auto-posicionada inicial
       ubicarBarcosDefault();
+      socket.emit('player:confirm_fleet', { roomCode: currentRoomCode, grid: myGrid });
       actualizarTurno(activePlayer);
     });
 
@@ -378,11 +403,8 @@
 
       document.getElementById('btnRoulette').disabled = !myTurn || rouletteSpun;
 
-      if (!myTurn) {
-        log(`⏳ Turno de <b>${activePlayer.name}</b>. Esperá tu turno.`);
-      } else {
-        log(`✨ <b>¡ES TU TURNO!</b> Girá la ruleta para atacar.`);
-      }
+      if (!myTurn) log(`⏳ Turno de <b>${activePlayer.name}</b>.`);
+      else log(`✨ <b>¡ES TU TURNO!</b> Girá la ruleta.`);
 
       renderTabs();
       renderActiveBoard();
@@ -418,15 +440,25 @@
       renderTabs();
     });
 
-    socket.on('game:sync_board', ({ boardHistories: updatedHistories, lastAction }) => {
+    socket.on('game:sync_board', ({ boardHistories: updatedHistories, activePlayerEnergy }) => {
       boardHistories = updatedHistories;
-      log(`💥 ${lastAction.player} atacó a ${lastAction.targetId === socket.id ? 'TU TABLERO' : 'un rival'} (${lastAction.isHit ? 'IMPACTO' : 'AGUA'})`);
+      if (myTurn && activePlayerEnergy !== undefined) {
+        myEnergy = activePlayerEnergy;
+        document.getElementById('energyValue').innerText = myEnergy;
+      }
       renderActiveBoard();
     });
 
-    socket.on('error:msg', ({ message }) => {
-      alert(message);
-    });
+    function setSkill(skill) {
+      selectedSkill = skill;
+      document.querySelectorAll('.skill-btn').forEach(b => b.classList.remove('active'));
+      const map = {
+        basic_shot: 'btnShot', cross_shot: 'btnCross', sonar: 'btnSonar', rain: 'btnRain',
+        shield: 'btnShield', move_ship: 'btnMove', repair: 'btnRepair'
+      };
+      if (map[skill]) document.getElementById(map[skill]).classList.add('active');
+      log(`Habilidad seleccionada: <b>${skill.toUpperCase()}</b>`);
+    }
 
     function renderTabs() {
       const tabBar = document.getElementById('tabBar');
@@ -434,8 +466,11 @@
 
       const myBtn = document.createElement('button');
       myBtn.className = 'tab-btn' + (activeTabId === 'my' ? ' active' : '');
-      myBtn.innerText = '🛡️ Mi Flota';
-      myBtn.onclick = () => { activeTabId = 'my'; renderTabs(); renderActiveBoard(); };
+      myBtn.innerText = `🛡️ Mi Flota ${showMyShips ? '👁️' : '🙈'}`;
+      myBtn.onclick = () => {
+        if (activeTabId === 'my') toggleShowShips();
+        else { activeTabId = 'my'; renderTabs(); renderActiveBoard(); }
+      };
       tabBar.appendChild(myBtn);
 
       enemyPlayers.forEach(p => {
@@ -463,7 +498,7 @@
           cell.className = 'cell';
 
           if (activeTabId === 'my') {
-            if (myGrid[r][c] !== null) {
+            if (showMyShips && myGrid[r][c] !== null) {
               cell.classList.add('ship');
               cell.innerText = '🚢';
             }
@@ -472,13 +507,16 @@
               cell.classList.add(state);
               if (state === 'hit') cell.innerText = '💥';
               if (state === 'water') cell.innerText = '•';
+              if (state === 'shielded') cell.classList.add('shielded');
             }
+            cell.onclick = () => ejecutarAccionPropia(r, c);
           } else {
             const state = boardHistories[activeTabId][key];
             if (state) {
               cell.classList.add(state);
               if (state === 'hit') cell.innerText = '💥';
               if (state === 'water') cell.innerText = '•';
+              if (state === 'sonar') cell.innerText = '📡';
             }
             cell.onclick = () => dispararRival(r, c);
           }
@@ -486,6 +524,27 @@
           grid.appendChild(cell);
         }
       }
+    }
+
+    function ejecutarAccionPropia(r, c) {
+      if (!myTurn) return alert('¡Esperá tu turno!');
+      if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
+
+      const costs = { shield: 2, repair: 3 };
+      const cost = costs[selectedSkill] || 0;
+
+      if (myEnergy < cost) return alert('⚡ Energía insuficiente');
+
+      socket.emit('game:action', {
+        roomCode: currentRoomCode,
+        targetId: socket.id,
+        row: r,
+        col: c,
+        type: selectedSkill,
+        cost
+      });
+
+      setSkill('basic_shot');
     }
 
     function dispararRival(r, c) {
@@ -496,7 +555,10 @@
         return alert(`¡Pestaña bloqueada! Tenés que dispararle a tu objetivo de la ruleta.`);
       }
 
-      const isHit = Math.random() < 0.7;
+      const costs = { basic_shot: 0, cross_shot: 4, sonar: 2, rain: 6 };
+      const cost = costs[selectedSkill] || 0;
+
+      if (myEnergy < cost) return alert('⚡ Energía insuficiente');
 
       socket.emit('game:action', {
         roomCode: currentRoomCode,
@@ -504,8 +566,10 @@
         row: r,
         col: c,
         type: selectedSkill,
-        isHit
+        cost
       });
+
+      setSkill('basic_shot');
     }
 
     function copiarLink() {

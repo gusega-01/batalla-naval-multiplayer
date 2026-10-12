@@ -27,6 +27,7 @@ interface Player {
   name: string;
   isBot: boolean;
   energy: number;
+  grid: (string | null)[][];
 }
 
 interface RoomData {
@@ -41,13 +42,53 @@ interface RoomData {
 
 const rooms: Record<string, RoomData> = {};
 
+function generarFlotaMatriz(): (string | null)[][] {
+  const grid: (string | null)[][] = Array(10).fill(null).map(() => Array(10).fill(null));
+  const ships = [
+    { id: 'carrier', length: 4 },
+    { id: 'battleship', length: 3 },
+    { id: 'cruiser1', length: 3 },
+    { id: 'destroyer', length: 2 },
+    { id: 'patrol1', length: 1 },
+    { id: 'patrol2', length: 1 }
+  ];
+
+  ships.forEach(s => {
+    let placed = false;
+    while (!placed) {
+      const r = Math.floor(Math.random() * 10);
+      const c = Math.floor(Math.random() * 10);
+      const orient = Math.random() < 0.5;
+
+      let canPlace = true;
+      for (let i = 0; i < s.length; i++) {
+        const currR = orient ? r : r + i;
+        const currC = orient ? c + i : c;
+        if (currR >= 10 || currC >= 10 || grid[currR][currC] !== null) {
+          canPlace = false; break;
+        }
+      }
+
+      if (canPlace) {
+        for (let i = 0; i < s.length; i++) {
+          const currR = orient ? r : r + i;
+          const currC = orient ? c + i : c;
+          grid[currR][currC] = s.id;
+        }
+        placed = true;
+      }
+    }
+  });
+  return grid;
+}
+
 io.on('connection', (socket) => {
   console.log('💡 Jugador conectado:', socket.id);
 
   socket.on('room:create', ({ hostName }) => {
     const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
     rooms[roomCode] = {
-      players: [{ id: socket.id, name: hostName || 'Gustavo', isBot: false, energy: 3 }],
+      players: [{ id: socket.id, name: hostName || 'Gustavo', isBot: false, energy: 3, grid: [] }],
       currentTurnIndex: 0,
       rouletteSpun: false,
       gameStarted: false,
@@ -66,7 +107,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (room && room.players.length < 4) {
       const pId = socket.id;
-      room.players.push({ id: pId, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false, energy: 3 });
+      room.players.push({ id: pId, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false, energy: 3, grid: [] });
       room.boardHistories[pId] = {};
 
       socket.join(roomCode);
@@ -80,6 +121,16 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('player:confirm_fleet', ({ roomCode, grid }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    const player = room.players.find(p => p.id === socket.id);
+    if (player) {
+      player.grid = grid;
+    }
+  });
+
   socket.on('room:add_bot', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (room && room.players.length < 4) {
@@ -87,7 +138,7 @@ io.on('connection', (socket) => {
       const botId = `bot_${Date.now()}_${botNumber}`;
       const botName = `🤖 Bot ${botNumber}`;
 
-      room.players.push({ id: botId, name: botName, isBot: true, energy: 3 });
+      room.players.push({ id: botId, name: botName, isBot: true, energy: 3, grid: generarFlotaMatriz() });
       room.boardHistories[botId] = {};
 
       io.to(roomCode).emit('room:player_update', {
@@ -97,6 +148,11 @@ io.on('connection', (socket) => {
 
       if (room.players.length === 4) {
         room.gameStarted = true;
+        // Asignar grilla a los humanos que no enviaron grilla manual
+        room.players.forEach(p => {
+          if (!p.grid || p.grid.length === 0) p.grid = generarFlotaMatriz();
+        });
+
         io.to(roomCode).emit('game:start', {
           activePlayer: room.players[0]
         });
@@ -104,16 +160,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Girar Ruleta en el Servidor
   socket.on('game:spin_roulette', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
     const activePlayer = room.players[room.currentTurnIndex];
-    if (activePlayer.id !== socket.id) {
-      return socket.emit('error:msg', { message: '¡No es tu turno de girar la ruleta!' });
-    }
-
+    if (activePlayer.id !== socket.id) return;
     if (room.rouletteSpun) return;
 
     room.rouletteSpun = true;
@@ -138,30 +190,72 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Ejecutar Acción/Disparo Sincronizado
-  socket.on('game:action', ({ roomCode, targetId, row, col, type, isHit }) => {
+  socket.on('game:action', ({ roomCode, targetId, row, col, type, cost }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
     const activePlayer = room.players[room.currentTurnIndex];
-    if (activePlayer.id !== socket.id) {
-      return socket.emit('error:msg', { message: '¡No es tu turno!' });
+    if (activePlayer.id !== socket.id) return;
+
+    // Descontar energía del costo de la carta
+    activePlayer.energy = Math.max(0, activePlayer.energy - (cost || 0));
+
+    // Procesamiento defensivo
+    if (type === 'shield') {
+      room.boardHistories[socket.id][`${row}_${col}`] = 'shielded';
+    } else if (type === 'repair') {
+      delete room.boardHistories[socket.id][`${row}_${col}`];
+    } else {
+      // Procesamiento ofensivo con chequeo REAL de la grilla del objetivo
+      const targetPlayer = room.players.find(p => p.id === targetId);
+      if (targetPlayer) {
+        const coordsAfectadas: { r: number, c: number }[] = [];
+
+        if (type === 'basic_shot') coordsAfectadas.push({ r: row, c: col });
+        else if (type === 'cross_shot') {
+          coordsAfectadas.push({ r: row, c: col }, { r: row - 1, c: col }, { r: row + 1, c: col }, { r: row, c: col - 1 }, { r: row, c: col + 1 });
+        } else if (type === 'rain') {
+          for (let i = 0; i < 6; i++) {
+            coordsAfectadas.push({ r: Math.floor(Math.random() * 10), c: Math.floor(Math.random() * 10) });
+          }
+        } else if (type === 'sonar') {
+          for (let dr = 0; dr < 2; dr++) {
+            for (let dc = 0; dc < 2; dc++) {
+              if (row + dr < 10 && col + dc < 10) {
+                const key = `${row + dr}_${col + dc}`;
+                if (targetPlayer.grid[row + dr][col + dc] !== null) {
+                  room.boardHistories[targetId][key] = 'sonar';
+                }
+              }
+            }
+          }
+        }
+
+        // Aplicar disparos reales
+        if (type !== 'sonar') {
+          coordsAfectadas.forEach(({ r, c }) => {
+            if (r >= 0 && r < 10 && c >= 0 && c < 10) {
+              const key = `${r}_${c}`;
+              if (targetPlayer.grid[r][c] !== null) {
+                room.boardHistories[targetId][key] = 'hit';
+                activePlayer.energy = Math.min(10, activePlayer.energy + 1); // +1⚡ por impacto
+              } else {
+                if (!room.boardHistories[targetId][key]) {
+                  room.boardHistories[targetId][key] = 'water';
+                }
+              }
+            }
+          });
+        }
+      }
     }
 
-    const key = `${row}_${col}`;
-    const markState = isHit ? 'hit' : 'water';
-
-    if (type === 'shield') room.boardHistories[socket.id][key] = 'shielded';
-    else if (type === 'repair') delete room.boardHistories[socket.id][key];
-    else room.boardHistories[targetId][key] = markState;
-
-    // Sincronizar tablero para todos
     io.to(roomCode).emit('game:sync_board', {
       boardHistories: room.boardHistories,
-      lastAction: { player: activePlayer.name, targetId, row, col, type, isHit }
+      activePlayerEnergy: activePlayer.energy,
+      lastAction: { player: activePlayer.name, targetId, row, col, type }
     });
 
-    // Pasar el turno al siguiente jugador
     avanzarTurno(roomCode);
   });
 
@@ -177,7 +271,6 @@ io.on('connection', (socket) => {
       activePlayer: nextPlayer
     });
 
-    // Si el turno le toca a un Bot, simula su tiro
     if (nextPlayer.isBot) {
       setTimeout(() => {
         const objetivos = room.players.filter(p => p.id !== nextPlayer.id);
@@ -185,13 +278,13 @@ io.on('connection', (socket) => {
         const r = Math.floor(Math.random() * 10);
         const c = Math.floor(Math.random() * 10);
         const key = `${r}_${c}`;
-        const botHit = Math.random() < 0.5;
 
-        room.boardHistories[target.id][key] = botHit ? 'hit' : 'water';
+        const isHit = target.grid[r][c] !== null;
+        room.boardHistories[target.id][key] = isHit ? 'hit' : 'water';
 
         io.to(roomCode).emit('game:sync_board', {
           boardHistories: room.boardHistories,
-          lastAction: { player: nextPlayer.name, targetId: target.id, row: r, col: c, type: 'basic_shot', isHit: botHit }
+          lastAction: { player: nextPlayer.name, targetId: target.id, row: r, col: c, type: 'basic_shot' }
         });
 
         avanzarTurno(roomCode);
@@ -206,5 +299,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor Multijugador Sincronizado en Vivo listo en puerto ${PORT}`);
+  console.log(`🚀 Servidor listo con motor táctico en puerto ${PORT}`);
 });
