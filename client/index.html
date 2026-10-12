@@ -36,13 +36,14 @@
         }
 
         .invite-card input {
-            width: 80%;
+            width: 85%;
             padding: 8px;
             background: #0f172a;
             border: 1px solid #475569;
             color: #fff;
             border-radius: 4px;
             text-align: center;
+            margin-bottom: 8px;
         }
 
         .btn-copy {
@@ -52,15 +53,77 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin-top: 8px;
+            margin-top: 5px;
             font-weight: bold;
         }
 
-        /* Pestañas para Celulares */
+        /* Ruleta y Turno */
+        .roulette-box {
+            background: #0f172a;
+            border: 2px solid #3b82f6;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 10px;
+        }
+
+        /* Botonera de Jugadores Rivales */
+        .enemy-selector {
+            display: flex;
+            gap: 6px;
+            margin: 10px 0;
+            width: 100%;
+            max-width: 400px;
+            justify-content: center;
+        }
+
+        .enemy-btn {
+            flex: 1;
+            padding: 8px;
+            background: #334155;
+            border: 1px solid #475569;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .enemy-btn.active {
+            background: #dc2626;
+            border-color: #ef4444;
+        }
+
+        /* Cartas de Ataque */
+        .cards-container {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+            width: 100%;
+            max-width: 400px;
+            justify-content: center;
+        }
+
+        .card {
+            background: #1e1b4b;
+            border: 1px solid #6366f1;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 0.75rem;
+            text-align: center;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .card:hover { background: #312e81; }
+
+        /* Pestañas Celular */
         .board-tabs {
             display: flex;
             gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             width: 100%;
             max-width: 400px;
         }
@@ -81,13 +144,6 @@
             color: #ffffff;
         }
 
-        .boards-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-        }
-
         .board-box {
             display: none;
             width: 100%;
@@ -95,9 +151,7 @@
             text-align: center;
         }
 
-        .board-box.active {
-            display: block;
-        }
+        .board-box.active { display: block; }
 
         #consoleLog {
             background: #0f172a;
@@ -113,7 +167,6 @@
             text-align: center;
         }
 
-        /* Grillas del Tablero */
         .grid {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
@@ -148,35 +201,54 @@
 
     <h1>🎮 Batalla Naval (4 Jugadores)</h1>
 
-    <!-- Sección de Invitaciones por Link / QR y Bots -->
+    <!-- Menú Inicial con Apodo obligatorio -->
+    <div id="setupMenu" class="invite-card">
+        <h3>Tu Apodo para la Sala</h3>
+        <input type="text" id="playerNameInput" placeholder="Ej: Gustavo, Leo, etc." maxlength="12">
+        <hr style="border-color:#334155; margin:15px 0;">
+        <button class="btn-copy" style="background:#16a34a; width:100%; font-size:1.1rem;" onclick="crearSala()">✨ Crear Nueva Sala</button>
+        <br><br>
+        <input type="text" id="roomCodeInput" placeholder="Código de Sala">
+        <button class="btn-copy" style="width:100%;" onclick="unirseASala()">Unirse a Sala</button>
+    </div>
+
+    <!-- Sección de Invitaciones y Bots -->
     <div id="inviteSection" class="invite-card" style="display: none;">
         <p style="margin-top:0;"><b>¡Sala Creada!</b> Compartí este link:</p>
         <input type="text" id="inviteLinkInput" readonly>
         <button class="btn-copy" onclick="copiarLink()">📋 Copiar Link</button>
         <br><br>
         <p style="margin-bottom:5px;">O escaneen este QR:</p>
-        <img id="qrCodeImg" src="" alt="QR Sala" style="width: 150px; height: 150px; border-radius: 6px;">
+        <img id="qrCodeImg" src="" alt="QR Sala" style="width: 140px; height: 140px; border-radius: 6px;">
         
-        <hr style="border-color:#334155; margin:15px 0;">
-        <div id="playerCountText" style="font-weight:bold; margin-bottom:10px;">Jugadores en sala: 1/4</div>
-        <button class="btn-copy" style="background:#8b5cf6; width:100%; font-size:1rem;" onclick="agregarBot()">🤖 Agregar Bot (Completar sala)</button>
+        <hr style="border-color:#334155; margin:12px 0;">
+        <div id="playerCountText" style="font-weight:bold; margin-bottom:8px;">Jugadores en sala: 1/4</div>
+        <button class="btn-copy" style="background:#8b5cf6; width:100%;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
     </div>
 
-    <!-- Menú de entrada inicial -->
-    <div id="setupMenu" class="invite-card">
-        <button class="btn-copy" style="background:#16a34a; width:100%; font-size:1.1rem;" onclick="crearSala()">✨ Crear Nueva Sala</button>
-        <hr style="border-color:#334155; margin:15px 0;">
-        <input type="text" id="roomCodeInput" placeholder="Código de Sala">
-        <button class="btn-copy" style="width:100%; margin-top:8px;" onclick="unirseASala()">Unirse a Sala</button>
+    <!-- Panel de Ruleta de Turnos y Consola -->
+    <div id="roulettePanel" class="roulette-box" style="display: none;">
+        <div style="font-size:0.8rem; color:#94a3b8;">🎯 RULETA DE TURNOS</div>
+        <div id="activePlayerText" style="font-size:1.2rem; font-weight:bold; color:#f59e0b; margin:4px 0;">Esperando...</div>
     </div>
 
-    <div id="consoleLog">Esperando acción...</div>
+    <div id="consoleLog">Ingresá tu apodo para empezar</div>
 
-    <!-- Pestañas para alternar tableros en celular -->
+    <!-- Pestañas para Celulares -->
     <div class="board-tabs" id="boardTabs" style="display: none;">
         <button class="tab-btn active" id="tabMyBoard" onclick="switchBoard('myBoard')">🛡️ Mi Flota</button>
         <button class="tab-btn" id="tabEnemyBoard" onclick="switchBoard('enemyBoard')">🎯 Radar Enemigo</button>
     </div>
+
+    <!-- Cartas / Ataques Especiales -->
+    <div id="cardsPanel" class="cards-container" style="display: none;">
+        <div class="card" onclick="usarCarta('bomba')">💣 Bomba 2x2</div>
+        <div class="card" onclick="usarCarta('radar')">📡 Radar Revelador</div>
+        <div class="card" onclick="usarCarta('linea')">🚀 Disparo en Línea</div>
+    </div>
+
+    <!-- Botonera para Seleccionar el Radar de cada Rival -->
+    <div id="enemySelector" class="enemy-selector" style="display: none;"></div>
 
     <!-- Contenedor de Tableros -->
     <div class="boards-container">
@@ -186,7 +258,7 @@
         </div>
 
         <div id="enemyBoardContainer" class="board-box">
-            <h3>Radar Enemigo</h3>
+            <h3 id="enemyTitle">Radar Enemigo</h3>
             <div id="enemyGrid" class="grid"></div>
         </div>
     </div>
@@ -194,6 +266,18 @@
     <script>
         const socket = io('https://batalla-naval-multiplayer-4zh3.onrender.com');
         let currentRoomCode = null;
+        let selectedEnemyId = null;
+        let enemyPlayers = [];
+        let myPlayerId = null;
+
+        function getPlayerName() {
+            const name = document.getElementById('playerNameInput').value.trim();
+            if (!name) {
+                alert('Por favor ingresá tu apodo antes de continuar');
+                return null;
+            }
+            return name;
+        }
 
         function initGrids() {
             const myGridEl = document.getElementById('myGrid');
@@ -225,19 +309,21 @@
             const roomFromUrl = urlParams.get('room');
             if (roomFromUrl) {
                 document.getElementById('roomCodeInput').value = roomFromUrl;
-                document.getElementById('consoleLog').innerText = `Uniéndose a la sala: ${roomFromUrl}...`;
-                unirseASala();
             }
         });
 
         function crearSala() {
-            socket.emit('room:create', { hostName: 'Jugador 1' });
+            const name = getPlayerName();
+            if (!name) return;
+            socket.emit('room:create', { hostName: name });
         }
 
         function unirseASala() {
+            const name = getPlayerName();
+            if (!name) return;
             const code = document.getElementById('roomCodeInput').value.trim();
             if (!code) return alert('Ingresá un código válido');
-            socket.emit('room:join', { roomCode: code, playerName: 'Jugador ' + Math.floor(Math.random()*100) });
+            socket.emit('room:join', { roomCode: code, playerName: name });
         }
 
         function agregarBot() {
@@ -245,29 +331,60 @@
             socket.emit('room:add_bot', { roomCode: currentRoomCode });
         }
 
-        socket.on('room:created', ({ roomCode }) => {
+        socket.on('room:created', ({ roomCode, playerId }) => {
             currentRoomCode = roomCode;
+            myPlayerId = playerId;
             document.getElementById('setupMenu').style.display = 'none';
             const inviteUrl = `${window.location.origin}?room=${roomCode}`;
             document.getElementById('inviteLinkInput').value = inviteUrl;
             document.getElementById('qrCodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(inviteUrl)}&size=200`;
             document.getElementById('inviteSection').style.display = 'block';
-            document.getElementById('consoleLog').innerText = `Sala creada: ${roomCode}. Agregá bots o esperá jugadores.`;
+            document.getElementById('consoleLog').innerText = `Sala ${roomCode} creada. Agregá bots o compartí el link.`;
+        });
+
+        socket.on('room:joined', ({ roomCode, playerId }) => {
+            currentRoomCode = roomCode;
+            myPlayerId = playerId;
+            document.getElementById('setupMenu').style.display = 'none';
+            document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando completar a 4 jugadores...`;
         });
 
         socket.on('room:player_update', ({ count, players }) => {
             document.getElementById('playerCountText').innerText = `Jugadores en sala: ${count}/4`;
-            document.getElementById('consoleLog').innerText = `Jugadores (${count}/4): ${players.join(', ')}`;
+            document.getElementById('consoleLog').innerText = `Jugadores (${count}/4): ${players.map(p => p.name).join(', ')}`;
+
+            // Guardar rivales para la botonera
+            enemyPlayers = players.filter(p => p.id !== socket.id);
+            renderEnemyButtons();
+
             if (count === 4) {
                 iniciarPantallaJuego();
             }
         });
 
-        socket.on('room:joined', ({ roomCode }) => {
-            currentRoomCode = roomCode;
-            document.getElementById('setupMenu').style.display = 'none';
-            document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando completar 4 jugadores...`;
-        });
+        function renderEnemyButtons() {
+            const container = document.getElementById('enemySelector');
+            container.innerHTML = '';
+            enemyPlayers.forEach((p, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'enemy-btn' + (idx === 0 ? ' active' : '');
+                btn.innerText = `🎯 ${p.name}`;
+                btn.onclick = () => seleccionarRival(p.id, p.name, btn);
+                container.appendChild(btn);
+            });
+            if (enemyPlayers.length > 0) {
+                selectedEnemyId = enemyPlayers[0].id;
+                document.getElementById('enemyTitle').innerText = `Radar de: ${enemyPlayers[0].name}`;
+            }
+        }
+
+        function seleccionarRival(id, name, btnEl) {
+            selectedEnemyId = id;
+            document.querySelectorAll('.enemy-btn').forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
+            document.getElementById('enemyTitle').innerText = `Radar de: ${name}`;
+            initGrids(); // Limpia/Renderiza el tablero del rival seleccionado
+        }
 
         socket.on('game:start', () => {
             iniciarPantallaJuego();
@@ -275,17 +392,27 @@
         });
 
         socket.on('game:turn', ({ activePlayer }) => {
-            document.getElementById('consoleLog').innerText = `🎲 Turno de: ${activePlayer}`;
+            document.getElementById('activePlayerText').innerText = `🎲 ${activePlayer}`;
+            document.getElementById('consoleLog').innerText = `Turno de: ${activePlayer}`;
         });
 
         function disparar(row, col, cellEl) {
+            if (!selectedEnemyId) return alert('Seleccioná un rival primero');
             cellEl.classList.add('miss');
-            socket.emit('game:action', { roomCode: currentRoomCode, row, col });
+            socket.emit('game:action', { roomCode: currentRoomCode, targetId: selectedEnemyId, row, col });
+        }
+
+        function usarCarta(tipo) {
+            alert(`Activaste la carta: ${tipo.toUpperCase()}`);
+            socket.emit('game:use_card', { roomCode: currentRoomCode, card: tipo });
         }
 
         function iniciarPantallaJuego() {
             document.getElementById('setupMenu').style.display = 'none';
             document.getElementById('inviteSection').style.display = 'none';
+            document.getElementById('roulettePanel').style.display = 'block';
+            document.getElementById('cardsPanel').style.display = 'flex';
+            document.getElementById('enemySelector').style.display = 'flex';
             document.getElementById('boardTabs').style.display = 'flex';
             document.getElementById('myBoardContainer').classList.add('active');
             switchBoard('myBoard');

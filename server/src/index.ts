@@ -3,7 +3,6 @@ import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import fs from 'fs';
-import { roomManager } from './roomManager';
 
 const app = express();
 const server = http.createServer(app);
@@ -14,7 +13,6 @@ const io = new Server(server, {
   }
 });
 
-// Resuelve la carpeta client de forma absoluta sin importar dónde ejecute Node
 const rootDir = process.cwd().endsWith('server') 
   ? path.join(process.cwd(), '../client') 
   : path.join(process.cwd(), 'client');
@@ -30,8 +28,14 @@ app.get('{*splat}', (req, res) => {
   }
 });
 
+interface Player {
+  id: string;
+  name: string;
+  isBot: boolean;
+}
+
 interface RoomData {
-  players: { id: string; name: string; isBot: boolean }[];
+  players: Player[];
   currentTurnIndex: number;
 }
 
@@ -43,18 +47,19 @@ io.on('connection', (socket) => {
   socket.on('room:create', (data) => {
     try {
       const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+      const hostName = data?.hostName || 'Jugador 1';
+      
       rooms[roomCode] = {
-        players: [{ id: socket.id, name: data?.hostName || 'Jugador 1', isBot: false }],
+        players: [{ id: socket.id, name: hostName, isBot: false }],
         currentTurnIndex: 0
       };
 
       socket.join(roomCode);
-      console.log(`🏰 Sala 4-players creada: ${roomCode}`);
+      socket.emit('room:created', { roomCode, playerId: socket.id });
 
-      socket.emit('room:created', { roomCode });
       io.to(roomCode).emit('room:player_update', { 
         count: rooms[roomCode].players.length,
-        players: rooms[roomCode].players.map(p => p.name)
+        players: rooms[roomCode].players
       });
     } catch (err) {
       console.error('❌ Error creando sala:', err);
@@ -67,13 +72,15 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
 
       if (room && room.players.length < 4) {
-        room.players.push({ id: socket.id, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false });
+        const name = playerName || `Jugador ${room.players.length + 1}`;
+        room.players.push({ id: socket.id, name, isBot: false });
         socket.join(roomCode);
 
-        socket.emit('room:joined', { roomCode });
+        socket.emit('room:joined', { roomCode, playerId: socket.id });
+
         io.to(roomCode).emit('room:player_update', {
           count: room.players.length,
-          players: room.players.map(p => p.name)
+          players: room.players
         });
 
         if (room.players.length === 4) {
@@ -97,7 +104,7 @@ io.on('connection', (socket) => {
 
       io.to(roomCode).emit('room:player_update', {
         count: room.players.length,
-        players: room.players.map(p => p.name)
+        players: room.players
       });
 
       if (room.players.length === 4) {
@@ -107,17 +114,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('game:action', ({ roomCode, row, col }) => {
+  socket.on('game:action', ({ roomCode, targetId, row, col }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // Pasar el turno al siguiente jugador (ruleta de 4)
+    // Rotar ruleta de turnos al siguiente jugador
     room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
     const nextPlayer = room.players[room.currentTurnIndex];
 
     io.to(roomCode).emit('game:turn', { activePlayer: nextPlayer.name });
 
-    // Si le toca el turno a un Bot, dispara automáticamente tras 1.5s
+    // Si le toca el turno a un Bot, simula disparo a los 1.5s
     if (nextPlayer.isBot) {
       setTimeout(() => {
         room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
@@ -134,5 +141,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor de 4 Jugadores escuchando en puerto ${PORT}`);
+  console.log(`🚀 Servidor con Nicknames, Ruleta y Seleccionador de Rivales escuchando en puerto ${PORT}`);
 });
