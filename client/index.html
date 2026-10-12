@@ -654,7 +654,6 @@
               cell.classList.add('ship');
               cell.innerText = '🚢';
 
-              // ARRASTRE ACTIVADO
               if (selectedSkill === 'move_ship') {
                 cell.draggable = true;
                 cell.ondragstart = (e) => {
@@ -673,10 +672,10 @@
               if (state === 'hit') cell.innerText = '💥';
               if (state === 'water') cell.innerText = '•';
               if (state === 'sunk') cell.innerText = '☠️';
+              // EL ESCUDO SOLO ES VISIBLE EN TU PROPIA PANTALLA
               if (state === 'shielded') cell.classList.add('shielded');
             }
 
-            // DROP DE ARRASTRE
             cell.ondragover = (e) => {
               if (selectedSkill === 'move_ship') {
                 e.preventDefault();
@@ -700,11 +699,14 @@
           } else {
             const state = boardHistories[activeTabId][key];
             if (state) {
-              cell.classList.add(state);
-              if (state === 'hit') cell.innerText = '💥';
-              if (state === 'water') cell.innerText = '•';
-              if (state === 'sunk') cell.innerText = '☠️';
-              if (state === 'sonar') cell.innerText = '📡';
+              // NO MOSTRAR 'shielded' A LOS RIVALES
+              if (state !== 'shielded') {
+                cell.classList.add(state);
+                if (state === 'hit') cell.innerText = '💥';
+                if (state === 'water') cell.innerText = '•';
+                if (state === 'sunk') cell.innerText = '☠️';
+                if (state === 'sonar') cell.innerText = '📡';
+              }
             }
             cell.onclick = () => dispararRival(r, c);
           }
@@ -750,9 +752,8 @@
       if (!myTurn) return alert('¡Esperá tu turno!');
       if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
 
-      // PROTECCIÓN: Prohibido usar armas ofensivas en tu propio tablero
       if (['basic_shot', 'cross_shot', 'rain', 'sonar'].includes(selectedSkill)) {
-        return alert('❌ Acceso denegado: No podés disparar ni usar Sonar sobre tu propia flota. Cambiá a la pestaña de un rival.');
+        return alert('❌ Acceso denegado: No podés disparar ni usar Sonar sobre tu propia flota.');
       }
 
       if (selectedSkill === 'move_ship') {

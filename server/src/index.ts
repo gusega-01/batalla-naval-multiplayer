@@ -183,6 +183,7 @@ io.on('connection', (socket) => {
     }
   });
 
+  // RULETA LIMPIA Y SIN TRUCOS PREVIOS
   socket.on('game:spin_roulette', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room) return;
@@ -239,7 +240,7 @@ io.on('connection', (socket) => {
         shipObj.coords = newCoords;
       }
     } 
-    // ACCIONES DEFENSIVAS
+    // ACCIONES DEFENSIVAS (ESCUDO ES PRIVADO DEL PROPIO JUGADOR)
     else if (type === 'shield') {
       room.boardHistories[socket.id][`${row}_${col}`] = 'shielded';
     } else if (type === 'repair') {
@@ -275,9 +276,13 @@ io.on('connection', (socket) => {
           coordsAfectadas.forEach(({ r, c }) => {
             if (r >= 0 && r < 10 && c >= 0 && c < 10) {
               const key = `${r}_${c}`;
-              if (targetPlayer.grid[r][c] !== null) {
+
+              // SI TIENE ESCUDO, EL ESCUDO ABSORBE EL DISPARO DE FORMA PRIVADA
+              if (room.boardHistories[targetId][key] === 'shielded') {
+                delete room.boardHistories[targetId][key];
+              } else if (targetPlayer.grid[r][c] !== null) {
                 room.boardHistories[targetId][key] = 'hit';
-                activePlayer.energy = Math.min(10, activePlayer.energy + 1); // +1⚡ al atacar al rival
+                activePlayer.energy = Math.min(10, activePlayer.energy + 1);
               } else {
                 if (!room.boardHistories[targetId][key]) {
                   room.boardHistories[targetId][key] = 'water';
@@ -286,7 +291,6 @@ io.on('connection', (socket) => {
             }
           });
 
-          // Chequeo de calaveras (barco hundido completo)
           verificarYMarcarHundidos(targetPlayer, room.boardHistories[targetId]);
         }
       }
@@ -319,10 +323,13 @@ io.on('connection', (socket) => {
         const c = Math.floor(Math.random() * 10);
         const key = `${r}_${c}`;
 
-        const isHit = target.grid[r][c] !== null;
-        room.boardHistories[target.id][key] = isHit ? 'hit' : 'water';
-
-        verificarYMarcarHundidos(target, room.boardHistories[target.id]);
+        if (room.boardHistories[target.id][key] === 'shielded') {
+          delete room.boardHistories[target.id][key];
+        } else {
+          const isHit = target.grid[r][c] !== null;
+          room.boardHistories[target.id][key] = isHit ? 'hit' : 'water';
+          verificarYMarcarHundidos(target, room.boardHistories[target.id]);
+        }
 
         io.to(roomCode).emit('game:sync_board', {
           boardHistories: room.boardHistories,
