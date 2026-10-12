@@ -14,7 +14,13 @@ const io = new Server(server, {
 });
 
 // Sirve los archivos estáticos del cliente ajustando 4 niveles hacia arriba
-app.use(express.static(path.join(__dirname, '../../../../client')));
+// Resuelve la ruta hacia la carpeta client desde cualquier entorno
+const clientPath = path.resolve(process.cwd(), '../client');
+app.use(express.static(clientPath));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientPath, 'index.html'));
+});
 
 io.on('connection', (socket) => {
   console.log('💡 Jugador conectado:', socket.id);
@@ -41,7 +47,7 @@ io.on('connection', (socket) => {
       
       // Intentamos llamar a joinRoom pasando timestamp
       let result = (roomManager as any).joinRoom(roomCode, socket.id, playerName || 'Rival', now);
-      
+
       // Si no devolvió objeto, verificamos booleano o éxito
       if (result) {
         socket.join(roomCode);
