@@ -85,17 +85,8 @@
       font-weight: bold;
     }
 
-    .draggable-ship.selected {
-      background-color: #2980b9;
-      border-style: solid;
-    }
-
-    .draggable-ship.placed {
-      opacity: 0.4;
-      cursor: not-allowed;
-      border-style: solid;
-      border-color: #34495e;
-    }
+    .draggable-ship.selected { background-color: #2980b9; border-style: solid; }
+    .draggable-ship.placed { opacity: 0.4; cursor: not-allowed; border-style: solid; border-color: #34495e; }
 
     .skills-panel {
       background-color: #1e1e1e;
@@ -231,6 +222,8 @@
     .cell.ship { background-color: #2980b9; }
     .cell.water { background-color: #3498db; color: white; }
     .cell.hit { background-color: #e74c3c; color: white; }
+    .cell.sunk { background-color: #2ecc71; color: black; font-weight: bold; }
+    .cell.sonar { background-color: #f1c40f; color: black; }
     .cell.shielded { border: 2px solid #1abc9c; }
     .cell.drag-over { background-color: #8e44ad !important; }
     .cell.selected-move { border: 2px solid #f1c40f; }
@@ -288,7 +281,7 @@
 
     <button class="skill-btn active" id="btnShot" onclick="setSkill('basic_shot')">💥 Normal (0⚡)</button>
     <button class="skill-btn" id="btnCross" onclick="setSkill('cross_shot')">➕ Cruz (4⚡)</button>
-    <button class="skill-btn" id="btnSonar" onclick="setSkill('sonar')">📡 Sonar (2⚡)</button>
+    <button class="skill-btn" id="btnSonar" onclick="setSkill('sonar')">📡 Sonar 2x2 (2⚡)</button>
     <button class="skill-btn" id="btnRain" onclick="setSkill('rain')">🌧️ Lluvia (6⚡)</button>
 
     <button class="skill-btn defensive" id="btnShield" onclick="setSkill('shield')">🛡️ Escudo (2⚡)</button>
@@ -323,6 +316,9 @@
     let placedShips = [];
     let myGrid = Array(10).fill(null).map(() => Array(10).fill(null));
 
+    // Estructura para registrar los barcos de los bots y detectar cuando se hunden completos
+    const botShipData = {};
+
     let selectedSkill = 'basic_shot';
     let myEnergy = 3;
     let currentTargetId = undefined;
@@ -330,9 +326,8 @@
     let rouletteSpun = false;
     let activeTabId = 'my';
     let enemyPlayers = [];
-    let showMyShips = true; // Control Ocultar/Mostrar Flota
+    let showMyShips = true;
 
-    // Control para mover barcos
     let shipToMove = null;
 
     const boardHistories = { my: {} };
@@ -519,8 +514,43 @@
       }
     }
 
+    function generarFlotaBot(botId) {
+      const grid = Array(10).fill(null).map(() => Array(10).fill(null));
+      const ships = [];
+
+      availableShips.forEach(s => {
+        let placed = false;
+        while (!placed) {
+          const r = Math.floor(Math.random() * 10);
+          const c = Math.floor(Math.random() * 10);
+          const orient = Math.random() < 0.5;
+
+          let canPlace = true;
+          let coords = [];
+          for (let i = 0; i < s.length; i++) {
+            let currR = orient ? r : r + i;
+            let currC = orient ? c + i : c;
+            if (currR >= 10 || currC >= 10 || grid[currR][currC] !== null) {
+              canPlace = false; break;
+            }
+            coords.push({ r: currR, c: currC });
+          }
+
+          if (canPlace) {
+            coords.forEach(coord => { grid[coord.r][coord.c] = s.id; });
+            ships.push({ id: s.id, length: s.length, coords });
+            placed = true;
+          }
+        }
+      });
+
+      botShipData[botId] = { grid, ships };
+    }
+
     function confirmarFlota() {
       if (placedShips.length < availableShips.length) return;
+
+      enemyPlayers.forEach(p => generarFlotaBot(p.id));
 
       document.getElementById('placementPanel').style.display = 'none';
       document.getElementById('skillsPanel').style.display = 'flex';
@@ -535,13 +565,12 @@
       const tabBar = document.getElementById('tabBar');
       tabBar.innerHTML = '';
 
-      // Mi pestaña con botón Ocultar/Mostrar
       const myBtn = document.createElement('button');
       myBtn.className = 'tab-btn' + (activeTabId === 'my' ? ' active' : '');
       myBtn.innerText = `🛡️ Mi Flota ${showMyShips ? '👁️' : '🙈'}`;
       myBtn.onclick = () => {
         if (activeTabId === 'my') {
-          toggleShowShips(); // Alterna visibilidad si ya está seleccionada
+          toggleShowShips();
         } else {
           activeTabId = 'my';
           renderTabs();
@@ -601,6 +630,10 @@
 
       if (skill === 'move_ship') {
         log('⚓ <b>Mover Barco:</b> Arrastrá un barco o tocá un barco y luego la casilla de destino.');
+      } else if (skill === 'sonar') {
+        log('📡 <b>Sonar 2x2:</b> Seleccioná una esquina para escanear 2x2 casillas en busca de barcos (no dispara).');
+      } else if (skill === 'rain') {
+        log('🌧️ <b>Lluvia x6 Misiles:</b> Tocá cualquier casilla para lanzar 6 misiles aleatorios.');
       } else {
         log(`Habilidad elegida: <b>${skill.toUpperCase()}</b>`);
       }
@@ -626,7 +659,6 @@
               cell.classList.add('ship');
               cell.innerText = '🚢';
 
-              // Habilitar Arrastrar para la habilidad MOVER BARCO
               if (selectedSkill === 'move_ship') {
                 cell.draggable = true;
                 cell.ondragstart = (e) => {
@@ -640,9 +672,13 @@
             }
 
             const state = boardHistories['my'][key];
-            if (state) cell.classList.add(state);
+            if (state) {
+              cell.classList.add(state);
+              if (state === 'hit') cell.innerText = '💥';
+              if (state === 'water') cell.innerText = '•';
+              if (state === 'sunk') cell.innerText = '☠️';
+            }
 
-            // Drag Over y Drop para Mover Barco
             cell.ondragover = (e) => {
               if (selectedSkill === 'move_ship') {
                 e.preventDefault();
@@ -669,6 +705,8 @@
               cell.classList.add(state);
               if (state === 'hit') cell.innerText = '💥';
               if (state === 'water') cell.innerText = '•';
+              if (state === 'sunk') cell.innerText = '☠️';
+              if (state === 'sonar') cell.innerText = '📡';
             }
             cell.onclick = () => dispararRival(r, c, cell);
           }
@@ -685,7 +723,6 @@
       const shipObj = placedShips.find(p => p.id === shipId);
       if (!shipObj) return;
 
-      // Verificar si entra en la nueva posición
       const newCoords = [];
       for (let i = 0; i < shipObj.length; i++) {
         const currR = shipObj.isHorizontal ? newR : newR + i;
@@ -697,9 +734,7 @@
         newCoords.push({ r: currR, c: currC });
       }
 
-      // Limpiar coordenadas viejas
       shipObj.coords.forEach(c => { myGrid[c.r][c.c] = null; });
-      // Colocar en nuevas coordenadas
       newCoords.forEach(c => { myGrid[c.r][c.c] = shipId; });
       shipObj.coords = newCoords;
 
@@ -744,6 +779,79 @@
       }
     }
 
+    function verificarHundimiento(targetId) {
+      const bData = botShipData[targetId];
+      if (!bData) return;
+
+      bData.ships.forEach(s => {
+        const hundido = s.coords.every(c => {
+          const key = `${c.r}_${c.c}`;
+          return boardHistories[targetId][key] === 'hit' || boardHistories[targetId][key] === 'sunk';
+        });
+
+        if (hundido) {
+          s.coords.forEach(c => {
+            const key = `${c.r}_${c.c}`;
+            if (boardHistories[targetId][key] !== 'sunk') {
+              boardHistories[targetId][key] = 'sunk';
+              log(`☠️ ¡BARCO ${s.id.toUpperCase()} HUNDIDO COMPLETO!`);
+            }
+          });
+        }
+      });
+    }
+
+    function procesarImpacto(targetId, r, c) {
+      const key = `${r}_${c}`;
+      const bData = botShipData[targetId];
+      const esBarco = bData && bData.grid[r][c] !== null;
+
+      if (esBarco) {
+        boardHistories[targetId][key] = 'hit';
+        if (myEnergy < 10) {
+          myEnergy = Math.min(10, myEnergy + 1);
+        }
+        verificarHundimiento(targetId);
+        return true;
+      } else {
+        if (!boardHistories[targetId][key]) {
+          boardHistories[targetId][key] = 'water';
+        }
+        return false;
+      }
+    }
+
+    function turnosBots() {
+      enemyPlayers.forEach(bot => {
+        // El bot elige a un rival al azar
+        const posiblesObjetivos = ['my', ...enemyPlayers.filter(p => p.id !== bot.id).map(p => p.id)];
+        const targetObj = posiblesObjetivos[Math.floor(Math.random() * posiblesObjetivos.length)];
+
+        const r = Math.floor(Math.random() * 10);
+        const c = Math.floor(Math.random() * 10);
+        const key = `${r}_${c}`;
+
+        if (targetObj === 'my') {
+          const esHit = myGrid[r][c] !== null;
+          if (esHit) {
+            boardHistories['my'][key] = 'hit';
+            log(`💥 ${bot.name} le acertó un disparo a tu flota en (${r},${c})!`);
+          } else {
+            boardHistories['my'][key] = 'water';
+          }
+        } else {
+          // Ataque entre bots
+          const bData = botShipData[targetObj];
+          if (bData && bData.grid[r][c] !== null) {
+            boardHistories[targetObj][key] = 'hit';
+            verificarHundimiento(targetObj);
+          } else {
+            if (!boardHistories[targetObj][key]) boardHistories[targetObj][key] = 'water';
+          }
+        }
+      });
+    }
+
     function dispararRival(r, c, cellEl) {
       if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
 
@@ -757,27 +865,63 @@
 
       myEnergy -= costs[selectedSkill];
 
-      const isHit = Math.random() < 0.8;
-      const key = `${r}_${c}`;
+      // 1. DISPARO NORMAL
+      if (selectedSkill === 'basic_shot') {
+        const hit = procesarImpacto(activeTabId, r, c);
+        log(hit ? `🎯 ¡IMPACTO DIRECTO en (${r},${c})! +1⚡` : `💦 Agua en (${r},${c}).`);
+      } 
+      // 2. ATAQUE EN CRUZ
+      else if (selectedSkill === 'cross_shot') {
+        const coords = [
+          { r, c },
+          { r: r - 1, c }, { r: r + 1, c },
+          { r, c: c - 1 }, { r, c: c + 1 }
+        ];
 
-      if (isHit) {
-        cellEl.classList.add('hit');
-        cellEl.innerText = '💥';
-        boardHistories[activeTabId][key] = 'hit';
-        
-        if (myEnergy < 10) {
-          myEnergy = Math.min(10, myEnergy + 1);
-          log(`🎯 ¡IMPACTO! +1⚡ Ganado.`);
+        let hits = 0;
+        coords.forEach(coord => {
+          if (coord.r >= 0 && coord.r < 10 && coord.c >= 0 && coord.c < 10) {
+            if (procesarImpacto(activeTabId, coord.r, coord.c)) hits++;
+          }
+        });
+        log(`➕ ATAQUE EN CRUZ completado. ${hits} impactos logrados.`);
+      } 
+      // 3. SONAR 2x2
+      else if (selectedSkill === 'sonar') {
+        let detectados = 0;
+        const bData = botShipData[activeTabId];
+        for (let dr = 0; dr < 2; dr++) {
+          for (let dc = 0; dc < 2; dc++) {
+            const currR = r + dr;
+            const currC = c + dc;
+            if (currR < 10 && currC < 10) {
+              const key = `${currR}_${currC}`;
+              if (bData && bData.grid[currR][currC] !== null) {
+                detectados++;
+                boardHistories[activeTabId][key] = 'sonar';
+              }
+            }
+          }
         }
-      } else {
-        cellEl.classList.add('water');
-        cellEl.innerText = '•';
-        boardHistories[activeTabId][key] = 'water';
-        log(`💦 Agua en (${r},${c}).`);
+        log(`📡 SONAR 2x2: ${detectados} casilla(s) con barco detectadas.`);
+      } 
+      // 4. LLUVIA X6 MISILES
+      else if (selectedSkill === 'rain') {
+        let hits = 0;
+        for (let i = 0; i < 6; i++) {
+          const randR = Math.floor(Math.random() * 10);
+          const randC = Math.floor(Math.random() * 10);
+          if (procesarImpacto(activeTabId, randR, randC)) hits++;
+        }
+        log(`🌧️ LLUVIA X6 MISILES: ${hits} impactos logrados.`);
       }
+
+      // Ejecutar disparos de los bots en segundo plano
+      turnosBots();
 
       document.getElementById('energyValue').innerText = myEnergy;
 
+      // Reiniciar turno
       rouletteSpun = false;
       currentTargetId = undefined;
       isFreeChoice = false;
@@ -785,6 +929,7 @@
       document.getElementById('targetInfo').innerText = '🎯 Objetivo: Pendiente';
       setSkill('basic_shot');
       renderTabs();
+      renderActiveBoard();
     }
 
     function copiarLink() {
