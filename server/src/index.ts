@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
+import fs from 'fs';
 import { roomManager } from './roomManager';
 
 const app = express();
@@ -10,6 +11,22 @@ const io = new Server(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
+  }
+});
+
+// Resuelve la carpeta client de forma absoluta desde la raíz del proyecto
+const rootDir = process.cwd().endsWith('server') 
+  ? path.join(process.cwd(), '../client') 
+  : path.join(process.cwd(), 'client');
+
+app.use(express.static(rootDir));
+
+app.get('{*splat}', (req, res) => {
+  const indexPath = path.join(rootDir, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('No se encontró el archivo index.html en: ' + indexPath);
   }
 });
 
