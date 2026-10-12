@@ -328,6 +328,7 @@
     let showMyShips = true;
 
     let shipToMove = null;
+    let bonusShotGranted = false; // Flag para disparo gratis tras reparar
 
     const boardHistories = { my: {} };
 
@@ -335,6 +336,11 @@
       const el = document.getElementById('consoleLog');
       el.innerHTML += `<div>> ${msg}</div>`;
       el.scrollTop = el.scrollHeight;
+    }
+
+    function setEnergy(val) {
+      myEnergy = Math.min(10, Math.max(0, val));
+      document.getElementById('energyValue').innerText = myEnergy;
     }
 
     function toggleOrientation() {
@@ -555,6 +561,7 @@
       document.getElementById('skillsPanel').style.display = 'flex';
       document.getElementById('tabBar').style.display = 'flex';
 
+      setEnergy(3);
       renderTabs();
       renderActiveBoard();
       log('✅ Flota confirmada. ¡Girá la ruleta (0⚡) para comenzar!');
@@ -580,7 +587,7 @@
 
       enemyPlayers.forEach(p => {
         if (!boardHistories[p.id]) boardHistories[p.id] = {};
-        const isLockedTarget = (isFreeChoice || currentTargetId === p.id);
+        const isLockedTarget = (isFreeChoice || bonusShotGranted || currentTargetId === p.id);
 
         const btn = document.createElement('button');
         btn.className = 'tab-btn' + (activeTabId === p.id ? ' active' : '') + (isLockedTarget ? ' target-locked' : '');
@@ -628,11 +635,11 @@
       if (map[skill]) document.getElementById(map[skill]).classList.add('active');
 
       if (skill === 'move_ship') {
-        log('⚓ <b>Mover Barco:</b> Tocá un barco SANO y luego la casilla de destino. (Si está dañado debés repararlo primero)');
+        log('⚓ <b>Mover Barco:</b> Tocá un barco SANO y luego la casilla de destino.');
       } else if (skill === 'repair') {
-        log('🔧 <b>Reparación:</b> Tocá una casilla golpeada (💥) de tu flota para repararla.');
+        log('🔧 <b>Reparación:</b> Tocá un impacto (💥) para repararlo (-3⚡). ¡Te otorga 1 disparo libre normal!');
       } else if (skill === 'sonar') {
-        log('📡 <b>Sonar 2x2:</b> Seleccioná una casilla en el radar enemigo para escanear.');
+        log('📡 <b>Sonar 2x2:</b> Escanea casillas del rival.');
       } else {
         log(`Habilidad elegida: <b>${skill.toUpperCase()}</b>`);
       }
@@ -728,9 +735,8 @@
       if (!isFreeChoice) return alert('Mover barco requiere Objetivo Libre en la Ruleta');
       if (myEnergy < 2) return alert('⚡ Energía insuficiente (requiere 2⚡)');
 
-      // REGLA CLAVE: Si está dañado no se puede mover
       if (estaBarcoDanado(shipId)) {
-        return alert('⚠️ Este barco tiene impactos (💥). ¡Debés repararlo antes de poder moverlo!');
+        return alert('⚠️ Este barco tiene impactos (💥). ¡Debés repararlo antes de moverlo!');
       }
 
       const shipObj = placedShips.find(p => p.id === shipId);
@@ -747,13 +753,11 @@
         newCoords.push({ r: currR, c: currC });
       }
 
-      // Limpieza perfecta de la posición anterior
       shipObj.coords.forEach(c => { myGrid[c.r][c.c] = null; });
       newCoords.forEach(c => { myGrid[c.r][c.c] = shipId; });
       shipObj.coords = newCoords;
 
-      myEnergy -= 2;
-      document.getElementById('energyValue').innerText = myEnergy;
+      setEnergy(myEnergy - 2);
       log(`⚓ Barco ${shipObj.name} movido exitosamente a (${newR},${newC}).`);
 
       shipToMove = null;
@@ -778,7 +782,7 @@
         return;
       }
 
-      // REPARACIÓN CORREGIDA
+      // REPARACIÓN COMPLETA
       if (selectedSkill === 'repair') {
         if (!isFreeChoice) return alert('Reparación requiere Objetivo Libre en la Ruleta');
         if (myEnergy < 3) return alert('⚡ Energía insuficiente (requiere 3⚡)');
@@ -787,13 +791,15 @@
           return alert('⚠️ Solo podés reparar casillas que tengan un impacto (💥)');
         }
 
-        delete boardHistories['my'][key]; // Quita la marca de golpe
-        myEnergy -= 3;
-        document.getElementById('energyValue').innerText = myEnergy;
+        delete boardHistories['my'][key];
+        setEnergy(myEnergy - 3);
 
-        log(`🔧 Casilla (${r},${c}) reparada exitosamente.`);
+        bonusShotGranted = true; // Activa disparo libre de recompensa
+        log(`🔧 Casilla (${r},${c}) reparada. 🎯 ¡Ganaste 1 disparo normal libre contra cualquier objetivo!`);
+        
         setSkill('basic_shot');
         renderActiveBoard();
+        renderTabs();
         return;
       }
 
@@ -801,9 +807,7 @@
         if (!isFreeChoice) return alert('Escudo requiere Objetivo Libre');
         if (myEnergy < 2) return alert('⚡ Energía insuficiente (requiere 2⚡)');
 
-        myEnergy -= 2;
-        document.getElementById('energyValue').innerText = myEnergy;
-
+        setEnergy(myEnergy - 2);
         boardHistories['my'][key] = 'shielded';
         log(`🛡️ Escudo aplicado en (${r},${c})`);
         setSkill('basic_shot');
@@ -843,9 +847,7 @@
 
       if (esBarco) {
         boardHistories[targetId][key] = 'hit';
-        if (myEnergy < 10) {
-          myEnergy = Math.min(10, myEnergy + 1);
-        }
+        setEnergy(myEnergy + 1); // Suma energía con tope máximo de 10
         verificarHundimiento(targetId);
         return true;
       } else {
@@ -866,7 +868,6 @@
         const key = `${r}_${c}`;
 
         if (targetObj === 'my') {
-          // Si tiene escudo lo absorbe
           if (boardHistories['my'][key] === 'shielded') {
             delete boardHistories['my'][key];
             log(`🛡️ ¡Tu escudo absorbió el disparo de ${bot.name} en (${r},${c})!`);
@@ -892,9 +893,9 @@
     }
 
     function dispararRival(r, c, cellEl) {
-      if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
+      if (!rouletteSpun && !bonusShotGranted) return alert('¡Primero girá la ruleta!');
 
-      if (!isFreeChoice && activeTabId !== currentTargetId) {
+      if (!bonusShotGranted && !isFreeChoice && activeTabId !== currentTargetId) {
         alert(`¡Pestaña bloqueada! Tenés asignado a ${enemyPlayers.find(p => p.id === currentTargetId)?.name}`);
         return;
       }
@@ -902,7 +903,7 @@
       const costs = { basic_shot: 0, cross_shot: 4, sonar: 2, rain: 6 };
       if (myEnergy < costs[selectedSkill]) return alert('⚡ Energía insuficiente');
 
-      myEnergy -= costs[selectedSkill];
+      setEnergy(myEnergy - costs[selectedSkill]);
 
       if (selectedSkill === 'basic_shot') {
         const hit = procesarImpacto(activeTabId, r, c);
@@ -950,11 +951,11 @@
 
       turnosBots();
 
-      document.getElementById('energyValue').innerText = myEnergy;
-
+      // Cierre definitivo del turno
       rouletteSpun = false;
       currentTargetId = undefined;
       isFreeChoice = false;
+      bonusShotGranted = false;
       document.getElementById('btnRoulette').disabled = false;
       document.getElementById('targetInfo').innerText = '🎯 Objetivo: Pendiente';
       setSkill('basic_shot');
