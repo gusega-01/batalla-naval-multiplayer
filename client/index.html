@@ -142,15 +142,6 @@
         .cell.ship { background: #0284c7; }
         .cell.hit { background: #ef4444; }
         .cell.miss { background: #64748b; }
-
-        .player-status-list {
-            margin: 10px 0;
-            font-size: 0.9rem;
-            text-align: left;
-            background: #0f172a;
-            padding: 8px;
-            border-radius: 6px;
-        }
     </style>
 </head>
 <body>
@@ -189,7 +180,7 @@
 
     <!-- Contenedor de Tableros -->
     <div class="boards-container">
-        <div id="myBoardContainer" class="board-box active">
+        <div id="myBoardContainer" class="board-box">
             <h3>Mi Tablero</h3>
             <div id="myGrid" class="grid"></div>
         </div>
@@ -222,7 +213,7 @@
                     enemyCell.className = 'cell';
                     enemyCell.dataset.row = r;
                     enemyCell.dataset.col = c;
-                    enemyCell.onclick = () => disparar(r, c);
+                    enemyCell.onclick = () => disparar(r, c, enemyCell);
                     enemyGridEl.appendChild(enemyCell);
                 }
             }
@@ -261,12 +252,12 @@
             document.getElementById('inviteLinkInput').value = inviteUrl;
             document.getElementById('qrCodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(inviteUrl)}&size=200`;
             document.getElementById('inviteSection').style.display = 'block';
-            document.getElementById('consoleLog').innerText = `Sala creada: ${roomCode}. Llená la sala con invitados o bots.`;
+            document.getElementById('consoleLog').innerText = `Sala creada: ${roomCode}. Agregá bots o esperá jugadores.`;
         });
 
         socket.on('room:player_update', ({ count, players }) => {
             document.getElementById('playerCountText').innerText = `Jugadores en sala: ${count}/4`;
-            document.getElementById('consoleLog').innerText = `Jugadores en sala (${count}/4): ${players.join(', ')}`;
+            document.getElementById('consoleLog').innerText = `Jugadores (${count}/4): ${players.join(', ')}`;
             if (count === 4) {
                 iniciarPantallaJuego();
             }
@@ -275,19 +266,20 @@
         socket.on('room:joined', ({ roomCode }) => {
             currentRoomCode = roomCode;
             document.getElementById('setupMenu').style.display = 'none';
-            document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando completar a 4 jugadores...`;
+            document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando completar 4 jugadores...`;
         });
 
         socket.on('game:start', () => {
             iniciarPantallaJuego();
-            document.getElementById('consoleLog').innerText = `¡Comienza la Batalla Naval de 4 Jugadores!`;
+            document.getElementById('consoleLog').innerText = `¡Comienza la partida de 4 jugadores!`;
         });
 
         socket.on('game:turn', ({ activePlayer }) => {
             document.getElementById('consoleLog').innerText = `🎲 Turno de: ${activePlayer}`;
         });
 
-        function disparar(row, col) {
+        function disparar(row, col, cellEl) {
+            cellEl.classList.add('miss');
             socket.emit('game:action', { roomCode: currentRoomCode, row, col });
         }
 
@@ -295,7 +287,8 @@
             document.getElementById('setupMenu').style.display = 'none';
             document.getElementById('inviteSection').style.display = 'none';
             document.getElementById('boardTabs').style.display = 'flex';
-            initGrids();
+            document.getElementById('myBoardContainer').classList.add('active');
+            switchBoard('myBoard');
         }
 
         function copiarLink() {
