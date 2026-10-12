@@ -22,12 +22,19 @@ app.get('{*splat}', (req, res) => {
   else res.status(404).send('Archivo no encontrado');
 });
 
+interface ShipInfo {
+  id: string;
+  length: number;
+  coords: { r: number; c: number }[];
+}
+
 interface Player {
   id: string;
   name: string;
   isBot: boolean;
   energy: number;
   grid: (string | null)[][];
+  ships: ShipInfo[];
   ready: boolean;
 }
 
@@ -43,9 +50,9 @@ interface RoomData {
 
 const rooms: Record<string, RoomData> = {};
 
-function generarFlotaBot(): (string | null)[][] {
+function generarFlotaBot(): { grid: (string | null)[][], ships: ShipInfo[] } {
   const grid: (string | null)[][] = Array(10).fill(null).map(() => Array(10).fill(null));
-  const ships = [
+  const shipConfigs = [
     { id: 'carrier', length: 4 },
     { id: 'battleship', length: 3 },
     { id: 'cruiser1', length: 3 },
@@ -53,8 +60,9 @@ function generarFlotaBot(): (string | null)[][] {
     { id: 'patrol1', length: 1 },
     { id: 'patrol2', length: 1 }
   ];
+  const ships: ShipInfo[] = [];
 
-  ships.forEach(s => {
+  shipConfigs.forEach(s => {
     let placed = false;
     while (!placed) {
       const r = Math.floor(Math.random() * 10);
@@ -62,34 +70,47 @@ function generarFlotaBot(): (string | null)[][] {
       const orient = Math.random() < 0.5;
 
       let canPlace = true;
+      const coords: { r: number, c: number }[] = [];
       for (let i = 0; i < s.length; i++) {
         const currR = orient ? r : r + i;
         const currC = orient ? c + i : c;
         if (currR >= 10 || currC >= 10 || grid[currR][currC] !== null) {
           canPlace = false; break;
         }
+        coords.push({ r: currR, c: currC });
       }
 
       if (canPlace) {
-        for (let i = 0; i < s.length; i++) {
-          const currR = orient ? r : r + i;
-          const currC = orient ? c + i : c;
-          grid[currR][currC] = s.id;
-        }
+        coords.forEach(coord => { grid[coord.r][coord.c] = s.id; });
+        ships.push({ id: s.id, length: s.length, coords });
         placed = true;
       }
     }
   });
-  return grid;
+  return { grid, ships };
+}
+
+function verificarYMarcarHundidos(player: Player, boardHistory: Record<string, string>) {
+  if (!player.ships) return;
+  player.ships.forEach(ship => {
+    const todoGolpeado = ship.coords.every(c => {
+      const key = `${c.r}_${c.c}`;
+      return boardHistory[key] === 'hit' || boardHistory[key] === 'sunk';
+    });
+
+    if (todoGolpeado) {
+      ship.coords.forEach(c => {
+        boardHistory[`${c.r}_${c.c}`] = 'sunk';
+      });
+    }
+  });
 }
 
 io.on('connection', (socket) => {
-  console.log('💡 Conectado:', socket.id);
-
   socket.on('room:create', ({ hostName }) => {
     const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
     rooms[roomCode] = {
-      players: [{ id: socket.id, name: hostName || 'Gustavo', isBot: false, energy: 3, grid: [], ready: false }],
+      players: [{ id: socket.id, name: hostName || 'Gustavo', isBot: false, energy: 3, grid: [], ships: [], ready: false }],
       currentTurnIndex: 0,
       rouletteSpun: false,
       gameStarted: false,
@@ -108,7 +129,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (room && room.players.length < 4) {
       const pId = socket.id;
-      room.players.push({ id: pId, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false, energy: 3, grid: [], ready: false });
+      room.players.push({ id: pId, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false, energy: 3, grid: [], ships: [], ready: false });
       room.boardHistories[pId] = {};
 
       socket.join(roomCode);
@@ -128,8 +149,9 @@ io.on('connection', (socket) => {
       const botNumber = room.players.filter(p => p.isBot).length + 1;
       const botId = `bot_${Date.now()}_${botNumber}`;
       const botName = `🤖 Bot ${botNumber}`;
+      const botData = generarFlotaBot();
 
-      room.players.push({ id: botId, name: botName, isBot: true, energy: 3, grid: generarFlotaBot(), ready: true });
+      room.players.push({ id: botId, name: botName, isBot: true, energy: 3, grid: botData.grid, ships: botData.ships, ready: true });
       room.boardHistories[botId] = {};
 
       io.to(roomCode).emit('room:player_update', {
@@ -143,17 +165,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('player:confirm_fleet', ({ roomCode, grid }) => {
+  socket.on('player:confirm_fleet', ({ roomCode, grid, ships }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
     const player = room.players.find(p => p.id === socket.id);
     if (player) {
       player.grid = grid;
+      player.ships = ships || [];
       player.ready = true;
     }
 
-    // Si todos los humanos confirmaron barcos, arranca el juego
     const todosListos = room.players.every(p => p.ready);
     if (todosListos && !room.gameStarted) {
       room.gameStarted = true;
@@ -190,20 +212,41 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('game:action', ({ roomCode, targetId, row, col, type, cost }) => {
+  socket.on('game:action', ({ roomCode, targetId, row, col, type, cost, moveData }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
     const activePlayer = room.players[room.currentTurnIndex];
     if (activePlayer.id !== socket.id) return;
 
+    // Cobrar costo de energía
     activePlayer.energy = Math.max(0, activePlayer.energy - (cost || 0));
 
-    if (type === 'shield') {
+    // MOVER BARCO
+    if (type === 'move_ship' && moveData) {
+      const { shipId, newR, newC } = moveData;
+      const shipObj = activePlayer.ships.find(s => s.id === shipId);
+      if (shipObj) {
+        shipObj.coords.forEach(c => { activePlayer.grid[c.r][c.c] = null; });
+        const isHoriz = shipObj.coords.length > 1 && shipObj.coords[0].r === shipObj.coords[1].r;
+        const newCoords: { r: number, c: number }[] = [];
+        for (let i = 0; i < shipObj.length; i++) {
+          const currR = isHoriz ? newR : newR + i;
+          const currC = isHoriz ? newC + i : newC;
+          activePlayer.grid[currR][currC] = shipId;
+          newCoords.push({ r: currR, c: currC });
+        }
+        shipObj.coords = newCoords;
+      }
+    } 
+    // ACCIONES DEFENSIVAS
+    else if (type === 'shield') {
       room.boardHistories[socket.id][`${row}_${col}`] = 'shielded';
     } else if (type === 'repair') {
       delete room.boardHistories[socket.id][`${row}_${col}`];
-    } else {
+    } 
+    // ACCIONES OFENSIVAS
+    else {
       const targetPlayer = room.players.find(p => p.id === targetId);
       if (targetPlayer) {
         const coordsAfectadas: { r: number, c: number }[] = [];
@@ -234,7 +277,7 @@ io.on('connection', (socket) => {
               const key = `${r}_${c}`;
               if (targetPlayer.grid[r][c] !== null) {
                 room.boardHistories[targetId][key] = 'hit';
-                activePlayer.energy = Math.min(10, activePlayer.energy + 1);
+                activePlayer.energy = Math.min(10, activePlayer.energy + 1); // +1⚡ al atacar al rival
               } else {
                 if (!room.boardHistories[targetId][key]) {
                   room.boardHistories[targetId][key] = 'water';
@@ -242,6 +285,9 @@ io.on('connection', (socket) => {
               }
             }
           });
+
+          // Chequeo de calaveras (barco hundido completo)
+          verificarYMarcarHundidos(targetPlayer, room.boardHistories[targetId]);
         }
       }
     }
@@ -276,6 +322,8 @@ io.on('connection', (socket) => {
         const isHit = target.grid[r][c] !== null;
         room.boardHistories[target.id][key] = isHit ? 'hit' : 'water';
 
+        verificarYMarcarHundidos(target, room.boardHistories[target.id]);
+
         io.to(roomCode).emit('game:sync_board', {
           boardHistories: room.boardHistories,
           lastAction: { player: nextPlayer.name, targetId: target.id, row: r, col: c, type: 'basic_shot' }
@@ -290,4 +338,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`🚀 Servidor listo en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));

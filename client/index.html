@@ -235,8 +235,11 @@
     .cell.ship { background-color: #2980b9; }
     .cell.water { background-color: #3498db; color: white; }
     .cell.hit { background-color: #e74c3c; color: white; }
+    .cell.sunk { background-color: #2ecc71; color: black; font-weight: bold; }
     .cell.sonar { background-color: #f1c40f; color: black; }
     .cell.shielded { border: 2px solid #1abc9c; }
+    .cell.drag-over { background-color: #8e44ad !important; }
+    .cell.selected-move { border: 2px solid #f1c40f; }
   </style>
 </head>
 <body>
@@ -254,7 +257,7 @@
     <button class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
   </div>
 
-  <!-- Invitación QR / Link / Bots -->
+  <!-- Invitación QR -->
   <div id="inviteSection" class="invite-card" style="display: none;">
     <p style="margin:2px 0;"><b>¡Sala Creada!</b> Link de invitación:</p>
     <input type="text" id="inviteLinkInput" readonly>
@@ -266,7 +269,7 @@
     <button class="btn-primary" style="background:#8b5cf6;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
   </div>
 
-  <!-- Fase de Colocación Restaurada -->
+  <!-- Fase de Colocación -->
   <div class="invite-card" id="placementPanel" style="display: none;">
     <h3 style="margin: 0 0 6px 0;">🛠️ Seleccioná un barco y tocá una casilla</h3>
     <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 6px;">
@@ -341,6 +344,8 @@
     let activeTabId = 'my';
     let enemyPlayers = [];
     let showMyShips = true;
+
+    let shipToMove = null;
 
     function log(msg) {
       const el = document.getElementById('consoleLog');
@@ -526,7 +531,7 @@
       document.getElementById('placementPanel').style.display = 'none';
       log('✅ Flota lista. Esperando que los demás confirmen...');
 
-      socket.emit('player:confirm_fleet', { roomCode: currentRoomCode, grid: myGrid });
+      socket.emit('player:confirm_fleet', { roomCode: currentRoomCode, grid: myGrid, ships: placedShips });
     }
 
     socket.on('game:start', ({ activePlayer }) => {
@@ -574,7 +579,7 @@
       if (free) {
         isFreeChoice = true;
         document.getElementById('targetInfo').innerText = '🎯 Objetivo: ¡LIBRE!';
-        log('🎰 ¡La ruleta cayó libre! Podés disparar a cualquier rival.');
+        log('🎰 ¡La ruleta cayó libre! Podés disparar a cualquier rival o usar defensas en tu flota.');
       } else {
         currentTargetId = targetId;
         document.getElementById('targetInfo').innerText = `🎯 Objetivo: ${targetName}`;
@@ -595,6 +600,7 @@
 
     function setSkill(skill) {
       selectedSkill = skill;
+      shipToMove = null;
       document.querySelectorAll('.skill-btn').forEach(b => b.classList.remove('active'));
       const map = {
         basic_shot: 'btnShot', cross_shot: 'btnCross', sonar: 'btnSonar', rain: 'btnRain',
@@ -602,6 +608,7 @@
       };
       if (map[skill]) document.getElementById(map[skill]).classList.add('active');
       log(`Habilidad seleccionada: <b>${skill.toUpperCase()}</b>`);
+      renderActiveBoard();
     }
 
     function renderTabs() {
@@ -642,24 +649,61 @@
           cell.className = 'cell';
 
           if (activeTabId === 'my') {
-            if (showMyShips && myGrid[r][c] !== null) {
+            const shipId = myGrid[r][c];
+            if (showMyShips && shipId !== null) {
               cell.classList.add('ship');
               cell.innerText = '🚢';
+
+              // ARRASTRE ACTIVADO
+              if (selectedSkill === 'move_ship') {
+                cell.draggable = true;
+                cell.ondragstart = (e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ shipId, origR: r, origC: c }));
+                };
+              }
             }
+
+            if (shipToMove && shipToMove.shipId === shipId) {
+              cell.classList.add('selected-move');
+            }
+
             const state = boardHistories[socket.id] ? boardHistories[socket.id][key] : null;
             if (state) {
               cell.classList.add(state);
               if (state === 'hit') cell.innerText = '💥';
               if (state === 'water') cell.innerText = '•';
+              if (state === 'sunk') cell.innerText = '☠️';
               if (state === 'shielded') cell.classList.add('shielded');
             }
-            cell.onclick = () => ejecutarAccionPropia(r, c);
+
+            // DROP DE ARRASTRE
+            cell.ondragover = (e) => {
+              if (selectedSkill === 'move_ship') {
+                e.preventDefault();
+                cell.classList.add('drag-over');
+              }
+            };
+            cell.ondragleave = () => cell.classList.remove('drag-over');
+            cell.ondrop = (e) => {
+              if (selectedSkill === 'move_ship') {
+                e.preventDefault();
+                cell.classList.remove('drag-over');
+                const rawData = e.dataTransfer.getData('text/plain');
+                if (rawData) {
+                  const data = JSON.parse(rawData);
+                  ejecutarMoverBarcoServidor(data.shipId, r, c);
+                }
+              }
+            };
+
+            cell.onclick = () => ejecutarAccionPropia(r, c, shipId);
           } else {
             const state = boardHistories[activeTabId][key];
             if (state) {
               cell.classList.add(state);
               if (state === 'hit') cell.innerText = '💥';
               if (state === 'water') cell.innerText = '•';
+              if (state === 'sunk') cell.innerText = '☠️';
               if (state === 'sonar') cell.innerText = '📡';
             }
             cell.onclick = () => dispararRival(r, c);
@@ -670,14 +714,72 @@
       }
     }
 
-    function ejecutarAccionPropia(r, c) {
+    function estaBarcoDanado(shipId) {
+      const shipObj = placedShips.find(p => p.id === shipId);
+      if (!shipObj) return false;
+      return shipObj.coords.some(c => {
+        const key = `${c.r}_${c.c}`;
+        return boardHistories[socket.id] && boardHistories[socket.id][key] === 'hit';
+      });
+    }
+
+    function ejecutarMoverBarcoServidor(shipId, newR, newC) {
+      if (!myTurn) return alert('¡Esperá tu turno!');
+      if (!isFreeChoice) return alert('Mover barco requiere Objetivo Libre en la Ruleta');
+      if (myEnergy < 2) return alert('⚡ Energía insuficiente (requiere 2⚡)');
+
+      if (estaBarcoDanado(shipId)) {
+        return alert('⚠️ Este barco está dañado (💥). ¡Debés repararlo antes de moverlo!');
+      }
+
+      socket.emit('game:action', {
+        roomCode: currentRoomCode,
+        targetId: socket.id,
+        row: newR,
+        col: newC,
+        type: 'move_ship',
+        cost: 2,
+        moveData: { shipId, newR, newC }
+      });
+
+      shipToMove = null;
+      setSkill('basic_shot');
+    }
+
+    function ejecutarAccionPropia(r, c, shipId) {
       if (!myTurn) return alert('¡Esperá tu turno!');
       if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
+
+      // PROTECCIÓN: Prohibido usar armas ofensivas en tu propio tablero
+      if (['basic_shot', 'cross_shot', 'rain', 'sonar'].includes(selectedSkill)) {
+        return alert('❌ Acceso denegado: No podés disparar ni usar Sonar sobre tu propia flota. Cambiá a la pestaña de un rival.');
+      }
+
+      if (selectedSkill === 'move_ship') {
+        if (shipId !== null) {
+          if (estaBarcoDanado(shipId)) {
+            return alert('⚠️ Este barco está dañado (💥). ¡Debés repararlo antes de moverlo!');
+          }
+          shipToMove = { shipId, r, c };
+          log(`⚓ Barco seleccionado. Tocá la casilla de destino.`);
+          renderActiveBoard();
+        } else if (shipToMove) {
+          ejecutarMoverBarcoServidor(shipToMove.shipId, r, c);
+        }
+        return;
+      }
 
       const costs = { shield: 2, repair: 3 };
       const cost = costs[selectedSkill] || 0;
 
       if (myEnergy < cost) return alert('⚡ Energía insuficiente');
+
+      if (selectedSkill === 'repair') {
+        const key = `${r}_${c}`;
+        if (!boardHistories[socket.id] || boardHistories[socket.id][key] !== 'hit') {
+          return alert('⚠️ Solo podés reparar casillas con un impacto (💥)');
+        }
+      }
 
       socket.emit('game:action', {
         roomCode: currentRoomCode,
