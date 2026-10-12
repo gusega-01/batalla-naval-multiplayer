@@ -57,7 +57,6 @@
             font-weight: bold;
         }
 
-        /* Ruleta y Turno */
         .roulette-box {
             background: #0f172a;
             border: 2px solid #3b82f6;
@@ -69,7 +68,6 @@
             margin-bottom: 10px;
         }
 
-        /* Botonera de Jugadores Rivales */
         .enemy-selector {
             display: flex;
             gap: 6px;
@@ -96,7 +94,6 @@
             border-color: #ef4444;
         }
 
-        /* Cartas de Ataque */
         .cards-container {
             display: flex;
             gap: 8px;
@@ -119,7 +116,6 @@
 
         .card:hover { background: #312e81; }
 
-        /* Pestañas Celular */
         .board-tabs {
             display: flex;
             gap: 10px;
@@ -327,8 +323,9 @@
         }
 
         function agregarBot() {
-            if (!currentRoomCode) return;
-            socket.emit('room:add_bot', { roomCode: currentRoomCode });
+            const code = currentRoomCode || document.getElementById('roomCodeInput').value.trim();
+            if (!code) return alert('No hay código de sala activo');
+            socket.emit('room:add_bot', { roomCode: code });
         }
 
         socket.on('room:created', ({ roomCode, playerId }) => {
@@ -346,14 +343,13 @@
             currentRoomCode = roomCode;
             myPlayerId = playerId;
             document.getElementById('setupMenu').style.display = 'none';
-            document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando completar a 4 jugadores...`;
+            document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando a los demás...`;
         });
 
         socket.on('room:player_update', ({ count, players }) => {
             document.getElementById('playerCountText').innerText = `Jugadores en sala: ${count}/4`;
             document.getElementById('consoleLog').innerText = `Jugadores (${count}/4): ${players.map(p => p.name).join(', ')}`;
 
-            // Guardar rivales para la botonera
             enemyPlayers = players.filter(p => p.id !== socket.id);
             renderEnemyButtons();
 
@@ -383,7 +379,7 @@
             document.querySelectorAll('.enemy-btn').forEach(b => b.classList.remove('active'));
             btnEl.classList.add('active');
             document.getElementById('enemyTitle').innerText = `Radar de: ${name}`;
-            initGrids(); // Limpia/Renderiza el tablero del rival seleccionado
+            initGrids();
         }
 
         socket.on('game:start', () => {
