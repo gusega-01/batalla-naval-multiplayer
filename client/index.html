@@ -316,7 +316,6 @@
     let placedShips = [];
     let myGrid = Array(10).fill(null).map(() => Array(10).fill(null));
 
-    // Estructura para registrar los barcos de los bots y detectar cuando se hunden completos
     const botShipData = {};
 
     let selectedSkill = 'basic_shot';
@@ -629,11 +628,11 @@
       if (map[skill]) document.getElementById(map[skill]).classList.add('active');
 
       if (skill === 'move_ship') {
-        log('⚓ <b>Mover Barco:</b> Arrastrá un barco o tocá un barco y luego la casilla de destino.');
+        log('⚓ <b>Mover Barco:</b> Tocá un barco SANO y luego la casilla de destino. (Si está dañado debés repararlo primero)');
+      } else if (skill === 'repair') {
+        log('🔧 <b>Reparación:</b> Tocá una casilla golpeada (💥) de tu flota para repararla.');
       } else if (skill === 'sonar') {
-        log('📡 <b>Sonar 2x2:</b> Seleccioná una esquina para escanear 2x2 casillas en busca de barcos (no dispara).');
-      } else if (skill === 'rain') {
-        log('🌧️ <b>Lluvia x6 Misiles:</b> Tocá cualquier casilla para lanzar 6 misiles aleatorios.');
+        log('📡 <b>Sonar 2x2:</b> Seleccioná una casilla en el radar enemigo para escanear.');
       } else {
         log(`Habilidad elegida: <b>${skill.toUpperCase()}</b>`);
       }
@@ -675,7 +674,6 @@
             if (state) {
               cell.classList.add(state);
               if (state === 'hit') cell.innerText = '💥';
-              if (state === 'water') cell.innerText = '•';
               if (state === 'sunk') cell.innerText = '☠️';
             }
 
@@ -716,9 +714,24 @@
       }
     }
 
+    function estaBarcoDanado(shipId) {
+      const shipObj = placedShips.find(p => p.id === shipId);
+      if (!shipObj) return false;
+
+      return shipObj.coords.some(c => {
+        const key = `${c.r}_${c.c}`;
+        return boardHistories['my'][key] === 'hit';
+      });
+    }
+
     function ejecutarMoverBarco(shipId, newR, newC) {
       if (!isFreeChoice) return alert('Mover barco requiere Objetivo Libre en la Ruleta');
       if (myEnergy < 2) return alert('⚡ Energía insuficiente (requiere 2⚡)');
+
+      // REGLA CLAVE: Si está dañado no se puede mover
+      if (estaBarcoDanado(shipId)) {
+        return alert('⚠️ Este barco tiene impactos (💥). ¡Debés repararlo antes de poder moverlo!');
+      }
 
       const shipObj = placedShips.find(p => p.id === shipId);
       if (!shipObj) return;
@@ -734,13 +747,14 @@
         newCoords.push({ r: currR, c: currC });
       }
 
+      // Limpieza perfecta de la posición anterior
       shipObj.coords.forEach(c => { myGrid[c.r][c.c] = null; });
       newCoords.forEach(c => { myGrid[c.r][c.c] = shipId; });
       shipObj.coords = newCoords;
 
       myEnergy -= 2;
       document.getElementById('energyValue').innerText = myEnergy;
-      log(`⚓ Barco ${shipObj.name} movido a (${newR},${newC}).`);
+      log(`⚓ Barco ${shipObj.name} movido exitosamente a (${newR},${newC}).`);
 
       shipToMove = null;
       setSkill('basic_shot');
@@ -748,8 +762,13 @@
     }
 
     function ejecutarAccionPropia(r, c, shipId, cellEl) {
+      const key = `${r}_${c}`;
+
       if (selectedSkill === 'move_ship') {
         if (shipId !== null) {
+          if (estaBarcoDanado(shipId)) {
+            return alert('⚠️ Este barco está dañado (💥). ¡Debés repararlo antes de moverlo!');
+          }
           shipToMove = { shipId, r, c };
           log(`⚓ Barco seleccionado para mover. Tocá la casilla de destino.`);
           renderActiveBoard();
@@ -759,24 +778,40 @@
         return;
       }
 
-      if (['shield', 'repair'].includes(selectedSkill)) {
-        if (!isFreeChoice) return alert('Escudo/Reparación requiere Objetivo Libre');
-        
-        const costs = { shield: 2, repair: 3 };
-        if (myEnergy < costs[selectedSkill]) return alert('⚡ Energía insuficiente');
+      // REPARACIÓN CORREGIDA
+      if (selectedSkill === 'repair') {
+        if (!isFreeChoice) return alert('Reparación requiere Objetivo Libre en la Ruleta');
+        if (myEnergy < 3) return alert('⚡ Energía insuficiente (requiere 3⚡)');
 
-        myEnergy -= costs[selectedSkill];
+        if (boardHistories['my'][key] !== 'hit') {
+          return alert('⚠️ Solo podés reparar casillas que tengan un impacto (💥)');
+        }
+
+        delete boardHistories['my'][key]; // Quita la marca de golpe
+        myEnergy -= 3;
         document.getElementById('energyValue').innerText = myEnergy;
 
-        const cls = selectedSkill === 'shield' ? 'shielded' : 'hit';
-        cellEl.classList.add(cls);
-        boardHistories['my'][`${r}_${c}`] = cls;
-
-        log(`Defensa ${selectedSkill.toUpperCase()} aplicada en (${r},${c})`);
+        log(`🔧 Casilla (${r},${c}) reparada exitosamente.`);
         setSkill('basic_shot');
-      } else {
-        alert('En tu tablero solo podés aplicar defensas (Escudo/Reparación/Mover)');
+        renderActiveBoard();
+        return;
       }
+
+      if (selectedSkill === 'shield') {
+        if (!isFreeChoice) return alert('Escudo requiere Objetivo Libre');
+        if (myEnergy < 2) return alert('⚡ Energía insuficiente (requiere 2⚡)');
+
+        myEnergy -= 2;
+        document.getElementById('energyValue').innerText = myEnergy;
+
+        boardHistories['my'][key] = 'shielded';
+        log(`🛡️ Escudo aplicado en (${r},${c})`);
+        setSkill('basic_shot');
+        renderActiveBoard();
+        return;
+      }
+
+      alert('En tu tablero solo podés aplicar defensas (Escudo / Reparación / Mover)');
     }
 
     function verificarHundimiento(targetId) {
@@ -823,7 +858,6 @@
 
     function turnosBots() {
       enemyPlayers.forEach(bot => {
-        // El bot elige a un rival al azar
         const posiblesObjetivos = ['my', ...enemyPlayers.filter(p => p.id !== bot.id).map(p => p.id)];
         const targetObj = posiblesObjetivos[Math.floor(Math.random() * posiblesObjetivos.length)];
 
@@ -832,15 +866,20 @@
         const key = `${r}_${c}`;
 
         if (targetObj === 'my') {
-          const esHit = myGrid[r][c] !== null;
-          if (esHit) {
-            boardHistories['my'][key] = 'hit';
-            log(`💥 ${bot.name} le acertó un disparo a tu flota en (${r},${c})!`);
+          // Si tiene escudo lo absorbe
+          if (boardHistories['my'][key] === 'shielded') {
+            delete boardHistories['my'][key];
+            log(`🛡️ ¡Tu escudo absorbió el disparo de ${bot.name} en (${r},${c})!`);
           } else {
-            boardHistories['my'][key] = 'water';
+            const esHit = myGrid[r][c] !== null;
+            if (esHit) {
+              boardHistories['my'][key] = 'hit';
+              log(`💥 ${bot.name} le acertó un disparo a tu flota en (${r},${c})!`);
+            } else {
+              boardHistories['my'][key] = 'water';
+            }
           }
         } else {
-          // Ataque entre bots
           const bData = botShipData[targetObj];
           if (bData && bData.grid[r][c] !== null) {
             boardHistories[targetObj][key] = 'hit';
@@ -865,13 +904,10 @@
 
       myEnergy -= costs[selectedSkill];
 
-      // 1. DISPARO NORMAL
       if (selectedSkill === 'basic_shot') {
         const hit = procesarImpacto(activeTabId, r, c);
         log(hit ? `🎯 ¡IMPACTO DIRECTO en (${r},${c})! +1⚡` : `💦 Agua en (${r},${c}).`);
-      } 
-      // 2. ATAQUE EN CRUZ
-      else if (selectedSkill === 'cross_shot') {
+      } else if (selectedSkill === 'cross_shot') {
         const coords = [
           { r, c },
           { r: r - 1, c }, { r: r + 1, c },
@@ -885,9 +921,7 @@
           }
         });
         log(`➕ ATAQUE EN CRUZ completado. ${hits} impactos logrados.`);
-      } 
-      // 3. SONAR 2x2
-      else if (selectedSkill === 'sonar') {
+      } else if (selectedSkill === 'sonar') {
         let detectados = 0;
         const bData = botShipData[activeTabId];
         for (let dr = 0; dr < 2; dr++) {
@@ -904,9 +938,7 @@
           }
         }
         log(`📡 SONAR 2x2: ${detectados} casilla(s) con barco detectadas.`);
-      } 
-      // 4. LLUVIA X6 MISILES
-      else if (selectedSkill === 'rain') {
+      } else if (selectedSkill === 'rain') {
         let hits = 0;
         for (let i = 0; i < 6; i++) {
           const randR = Math.floor(Math.random() * 10);
@@ -916,12 +948,10 @@
         log(`🌧️ LLUVIA X6 MISILES: ${hits} impactos logrados.`);
       }
 
-      // Ejecutar disparos de los bots en segundo plano
       turnosBots();
 
       document.getElementById('energyValue').innerText = myEnergy;
 
-      // Reiniciar turno
       rouletteSpun = false;
       currentTargetId = undefined;
       isFreeChoice = false;
