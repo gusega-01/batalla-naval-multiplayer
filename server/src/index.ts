@@ -6,8 +6,14 @@ import { roomManager } from './roomManager';
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
 
+// Sirve los archivos estáticos del cliente ajustando 4 niveles hacia arriba
 app.use(express.static(path.join(__dirname, '../../../../client')));
 
 io.on('connection', (socket) => {
@@ -28,46 +34,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('player:confirm_fleet', (data) => {
+  socket.on('room:join', (data) => {
     try {
-      const { roomCode, ships, grid } = data;
-      roomManager.confirmPlayerFleet(roomCode, socket.id, ships, grid);
-      
-      const view = roomManager.getPlayerView(roomCode, socket.id);
-      io.to(roomCode).emit('game:state', view);
-    } catch (err) {
-      console.error('❌ Error al confirmar flota:', err);
-    }
-  });
+      const { roomCode, playerName } = data;
+      const joined = (roomManager as any).joinRoom(roomCode, socket.id, playerName || 'Rival');
 
-  socket.on('game:spin_roulette', (data) => {
-    try {
-      const { roomCode } = data;
-      const result = roomManager.spinRoulette(roomCode, socket.id);
-      if (result) {
-        io.to(roomCode).emit('game:roulette_result', {
-          targetId: result.targetId,
-          targetName: result.targetName,
-          isFreeChoice: result.isFreeChoice
-        });
-      }
-    } catch (err) {
-      console.error('❌ Error girando ruleta:', err);
-    }
-  });
-
-  socket.on('game:action', async (data) => {
-    try {
-      const { roomCode, action } = data;
-      console.log(`🎯 Procesando acción en sala ${roomCode}:`, action);
-
-      const result = await roomManager.applyAction(roomCode, action, socket.id, io);
-      if (result && result.ok) {
+      if (joined) {
+        socket.join(roomCode);
+        console.log(`⚔️ Jugador ${socket.id} se unió a la sala ${roomCode}`);
         const view = roomManager.getPlayerView(roomCode, socket.id);
-        io.to(roomCode).emit('game:state', view || result.state);
+        socket.emit('room:joined', { roomCode, view });
+        io.to(roomCode).emit('room:opponent_joined', { message: 'El rival se ha conectado.' });
       }
     } catch (err) {
-      console.error('❌ Error procesando acción:', err);
+      console.error('❌ Error al unirse a sala:', err);
     }
   });
 
@@ -76,7 +56,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
 });
