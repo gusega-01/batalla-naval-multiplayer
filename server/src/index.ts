@@ -13,12 +13,20 @@ const io = new Server(server, {
   }
 });
 
-// Configuración de archivos estáticos del cliente (4 niveles hacia arriba)
+// Busca la carpeta client sin importar si se ejecuta desde dist/server/src o src/
 const clientPath = path.resolve(__dirname, '../../../../client');
+const fallbackClientPath = path.resolve(process.cwd(), '../client');
+
+// Servir archivos estáticos
 app.use(express.static(clientPath));
+app.use(express.static(fallbackClientPath));
 
 app.get('{*splat}', (req, res) => {
-  res.sendFile(path.join(clientPath, 'index.html'));
+  res.sendFile(path.join(clientPath, 'index.html'), (err) => {
+    if (err) {
+      res.sendFile(path.join(fallbackClientPath, 'index.html'));
+    }
+  });
 });
 
 io.on('connection', (socket) => {
@@ -44,27 +52,21 @@ io.on('connection', (socket) => {
       const { roomCode, playerName } = data;
       const now = Date.now();
       
-      // Intentamos llamar a joinRoom pasando timestamp
       let result = (roomManager as any).joinRoom(roomCode, socket.id, playerName || 'Rival', now);
 
-      // Si no devolvió objeto, verificamos booleano o éxito
       if (result) {
         socket.join(roomCode);
         console.log(`⚔️ Jugador ${socket.id} se unió a la sala ${roomCode}`);
 
         const view = roomManager.getPlayerView(roomCode, socket.id);
         
-        // Le avisamos al invitado que ya entró
         socket.emit('room:joined', { roomCode, view });
-        
-        // Le avisamos al creador que su rival ya se conectó
         io.to(roomCode).emit('room:opponent_joined', { message: 'El rival se ha conectado.' });
       } else {
-        socket.emit('error:msg', { message: 'No se pudo unirse a la sala (¿está llena o no existe?)' });
+        socket.emit('error:msg', { message: 'No se pudo unirse a la sala' });
       }
     } catch (err) {
       console.error('❌ Error al unirse a sala:', err);
-      // Forzamos el ingreso si hubo error de tipos para no trabar el juego hoy
       try {
         socket.join(data?.roomCode);
         socket.emit('room:joined', { roomCode: data?.roomCode, view: {} });
