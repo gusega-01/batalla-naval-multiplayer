@@ -13,10 +13,8 @@ const io = new Server(server, {
   }
 });
 
-// Sirve los archivos estáticos del cliente ajustando 4 niveles hacia arriba
-// Resuelve la ruta hacia la carpeta client desde cualquier entorno
-// Configuración de archivos estáticos del cliente
-const clientPath = path.resolve(__dirname, '../../../client');
+// Configuración de archivos estáticos del cliente (4 niveles hacia arriba)
+const clientPath = path.resolve(__dirname, '../../../../client');
 app.use(express.static(clientPath));
 
 app.get('{*splat}', (req, res) => {
