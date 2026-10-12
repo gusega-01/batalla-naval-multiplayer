@@ -14,7 +14,7 @@ const io = new Server(server, {
   }
 });
 
-// Resuelve la carpeta client de forma absoluta desde la raíz del proyecto
+// Resuelve la carpeta client de forma absoluta sin importar dónde ejecute Node
 const rootDir = process.cwd().endsWith('server') 
   ? path.join(process.cwd(), '../client') 
   : path.join(process.cwd(), 'client');
@@ -28,22 +28,6 @@ app.get('{*splat}', (req, res) => {
   } else {
     res.status(404).send('No se encontró el archivo index.html en: ' + indexPath);
   }
-});
-
-// Busca la carpeta client sin importar si se ejecuta desde dist/server/src o src/
-const clientPath = path.resolve(__dirname, '../../../../client');
-const fallbackClientPath = path.resolve(process.cwd(), '../client');
-
-// Servir archivos estáticos
-app.use(express.static(clientPath));
-app.use(express.static(fallbackClientPath));
-
-app.get('{*splat}', (req, res) => {
-  res.sendFile(path.join(clientPath, 'index.html'), (err) => {
-    if (err) {
-      res.sendFile(path.join(fallbackClientPath, 'index.html'));
-    }
-  });
 });
 
 io.on('connection', (socket) => {
