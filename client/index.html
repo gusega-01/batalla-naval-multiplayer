@@ -112,6 +112,36 @@
             font-size: 0.85rem;
             text-align: center;
         }
+
+        /* Grillas del Tablero */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 2px;
+            background: #334155;
+            padding: 2px;
+            border-radius: 6px;
+            aspect-ratio: 1;
+            width: 100%;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+
+        .cell {
+            background: #1e293b;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+            user-select: none;
+        }
+
+        .cell:hover { background: #475569; }
+        .cell.ship { background: #0284c7; }
+        .cell.hit { background: #ef4444; }
+        .cell.miss { background: #64748b; }
     </style>
 </head>
 <body>
@@ -148,12 +178,12 @@
     <div class="boards-container">
         <div id="myBoardContainer" class="board-box active">
             <h3>Mi Tablero</h3>
-            <div id="myGrid"></div>
+            <div id="myGrid" class="grid"></div>
         </div>
 
         <div id="enemyBoardContainer" class="board-box">
             <h3>Radar Enemigo</h3>
-            <div id="enemyGrid"></div>
+            <div id="enemyGrid" class="grid"></div>
         </div>
     </div>
 
@@ -161,8 +191,34 @@
         const socket = io('https://batalla-naval-multiplayer-4zh3.onrender.com');
         let currentRoomCode = null;
 
-        // Autounirse si entra desde un Link de invitación (?room=CODIGO)
+        // Renderizar grilla vacía
+        function initGrids() {
+            const myGridEl = document.getElementById('myGrid');
+            const enemyGridEl = document.getElementById('enemyGrid');
+            myGridEl.innerHTML = '';
+            enemyGridEl.innerHTML = '';
+
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 10; c++) {
+                    const myCell = document.createElement('div');
+                    myCell.className = 'cell';
+                    myCell.dataset.row = r;
+                    myCell.dataset.col = c;
+                    myCell.onclick = () => onCellClick(r, c, 'my');
+                    myGridEl.appendChild(myCell);
+
+                    const enemyCell = document.createElement('div');
+                    enemyCell.className = 'cell';
+                    enemyCell.dataset.row = r;
+                    enemyCell.dataset.col = c;
+                    enemyCell.onclick = () => onCellClick(r, c, 'enemy');
+                    enemyGridEl.appendChild(enemyCell);
+                }
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
+            initGrids();
             const urlParams = new URLSearchParams(window.location.search);
             const roomFromUrl = urlParams.get('room');
             if (roomFromUrl) {
@@ -182,12 +238,9 @@
             socket.emit('room:join', { roomCode: code, playerName: 'Jugador 2' });
         }
 
-        // 1. El Creador recibe la confirmación de sala creada
         socket.on('room:created', ({ roomCode }) => {
             currentRoomCode = roomCode;
             document.getElementById('setupMenu').style.display = 'none';
-            
-            // Mostrar tarjeta de invitación y QR
             const inviteUrl = `${window.location.origin}?room=${roomCode}`;
             document.getElementById('inviteLinkInput').value = inviteUrl;
             document.getElementById('qrCodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(inviteUrl)}&size=200`;
@@ -195,7 +248,6 @@
             document.getElementById('consoleLog').innerText = `Sala creada: ${roomCode}. Esperando rival...`;
         });
 
-        // 2. El Invitado recibe la confirmación al unirse
         socket.on('room:joined', ({ roomCode }) => {
             currentRoomCode = roomCode;
             iniciarPantallaJuego();
@@ -203,17 +255,23 @@
             switchBoard('myBoard');
         });
 
-        // 3. El Creador detecta que el Rival ya entró (se oculta el QR y arranca la partida)
         socket.on('room:opponent_joined', ({ message }) => {
             iniciarPantallaJuego();
             document.getElementById('consoleLog').innerText = `¡El rival se ha conectado! Acomodá tu flota.`;
             switchBoard('myBoard');
         });
 
+        function onCellClick(row, col, target) {
+            console.log(`Clic en ${target} -> fila: ${row}, col: ${col}`);
+            // Evento para disparar/ubicar según la fase del juego
+            socket.emit('game:action', { roomCode: currentRoomCode, row, col, target });
+        }
+
         function iniciarPantallaJuego() {
             document.getElementById('setupMenu').style.display = 'none';
-            document.getElementById('inviteSection').style.display = 'none'; // Oculta el QR y el link
-            document.getElementById('boardTabs').style.display = 'flex';     // Muestra las pestañas
+            document.getElementById('inviteSection').style.display = 'none';
+            document.getElementById('boardTabs').style.display = 'flex';
+            initGrids();
         }
 
         function copiarLink() {
