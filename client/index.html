@@ -8,7 +8,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
-    <title>Batalla Naval - Multijugador</title>
+    <title>Batalla Naval - Multijugador (4 Jugadores)</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         body {
@@ -142,20 +142,33 @@
         .cell.ship { background: #0284c7; }
         .cell.hit { background: #ef4444; }
         .cell.miss { background: #64748b; }
+
+        .player-status-list {
+            margin: 10px 0;
+            font-size: 0.9rem;
+            text-align: left;
+            background: #0f172a;
+            padding: 8px;
+            border-radius: 6px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>🎮 Batalla Naval</h1>
+    <h1>🎮 Batalla Naval (4 Jugadores)</h1>
 
-    <!-- Sección de Invitaciones por Link / QR -->
+    <!-- Sección de Invitaciones por Link / QR y Bots -->
     <div id="inviteSection" class="invite-card" style="display: none;">
         <p style="margin-top:0;"><b>¡Sala Creada!</b> Compartí este link:</p>
         <input type="text" id="inviteLinkInput" readonly>
         <button class="btn-copy" onclick="copiarLink()">📋 Copiar Link</button>
         <br><br>
-        <p style="margin-bottom:5px;">O que escaneen este QR:</p>
+        <p style="margin-bottom:5px;">O escaneen este QR:</p>
         <img id="qrCodeImg" src="" alt="QR Sala" style="width: 150px; height: 150px; border-radius: 6px;">
+        
+        <hr style="border-color:#334155; margin:15px 0;">
+        <div id="playerCountText" style="font-weight:bold; margin-bottom:10px;">Jugadores en sala: 1/4</div>
+        <button class="btn-copy" style="background:#8b5cf6; width:100%; font-size:1rem;" onclick="agregarBot()">🤖 Agregar Bot (Completar sala)</button>
     </div>
 
     <!-- Menú de entrada inicial -->
@@ -191,7 +204,6 @@
         const socket = io('https://batalla-naval-multiplayer-4zh3.onrender.com');
         let currentRoomCode = null;
 
-        // Renderizar grilla vacía
         function initGrids() {
             const myGridEl = document.getElementById('myGrid');
             const enemyGridEl = document.getElementById('enemyGrid');
@@ -204,14 +216,13 @@
                     myCell.className = 'cell';
                     myCell.dataset.row = r;
                     myCell.dataset.col = c;
-                    myCell.onclick = () => onCellClick(r, c, 'my');
                     myGridEl.appendChild(myCell);
 
                     const enemyCell = document.createElement('div');
                     enemyCell.className = 'cell';
                     enemyCell.dataset.row = r;
                     enemyCell.dataset.col = c;
-                    enemyCell.onclick = () => onCellClick(r, c, 'enemy');
+                    enemyCell.onclick = () => disparar(r, c);
                     enemyGridEl.appendChild(enemyCell);
                 }
             }
@@ -235,7 +246,12 @@
         function unirseASala() {
             const code = document.getElementById('roomCodeInput').value.trim();
             if (!code) return alert('Ingresá un código válido');
-            socket.emit('room:join', { roomCode: code, playerName: 'Jugador 2' });
+            socket.emit('room:join', { roomCode: code, playerName: 'Jugador ' + Math.floor(Math.random()*100) });
+        }
+
+        function agregarBot() {
+            if (!currentRoomCode) return;
+            socket.emit('room:add_bot', { roomCode: currentRoomCode });
         }
 
         socket.on('room:created', ({ roomCode }) => {
@@ -245,26 +261,34 @@
             document.getElementById('inviteLinkInput').value = inviteUrl;
             document.getElementById('qrCodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(inviteUrl)}&size=200`;
             document.getElementById('inviteSection').style.display = 'block';
-            document.getElementById('consoleLog').innerText = `Sala creada: ${roomCode}. Esperando rival...`;
+            document.getElementById('consoleLog').innerText = `Sala creada: ${roomCode}. Llená la sala con invitados o bots.`;
+        });
+
+        socket.on('room:player_update', ({ count, players }) => {
+            document.getElementById('playerCountText').innerText = `Jugadores en sala: ${count}/4`;
+            document.getElementById('consoleLog').innerText = `Jugadores en sala (${count}/4): ${players.join(', ')}`;
+            if (count === 4) {
+                iniciarPantallaJuego();
+            }
         });
 
         socket.on('room:joined', ({ roomCode }) => {
             currentRoomCode = roomCode;
-            iniciarPantallaJuego();
-            document.getElementById('consoleLog').innerText = `¡Te uniste a la sala ${roomCode}! Acomodá tu flota.`;
-            switchBoard('myBoard');
+            document.getElementById('setupMenu').style.display = 'none';
+            document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando completar a 4 jugadores...`;
         });
 
-        socket.on('room:opponent_joined', ({ message }) => {
+        socket.on('game:start', () => {
             iniciarPantallaJuego();
-            document.getElementById('consoleLog').innerText = `¡El rival se ha conectado! Acomodá tu flota.`;
-            switchBoard('myBoard');
+            document.getElementById('consoleLog').innerText = `¡Comienza la Batalla Naval de 4 Jugadores!`;
         });
 
-        function onCellClick(row, col, target) {
-            console.log(`Clic en ${target} -> fila: ${row}, col: ${col}`);
-            // Evento para disparar/ubicar según la fase del juego
-            socket.emit('game:action', { roomCode: currentRoomCode, row, col, target });
+        socket.on('game:turn', ({ activePlayer }) => {
+            document.getElementById('consoleLog').innerText = `🎲 Turno de: ${activePlayer}`;
+        });
+
+        function disparar(row, col) {
+            socket.emit('game:action', { roomCode: currentRoomCode, row, col });
         }
 
         function iniciarPantallaJuego() {

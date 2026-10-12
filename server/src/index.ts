@@ -30,19 +30,32 @@ app.get('{*splat}', (req, res) => {
   }
 });
 
+interface RoomData {
+  players: { id: string; name: string; isBot: boolean }[];
+  currentTurnIndex: number;
+}
+
+const rooms: Record<string, RoomData> = {};
+
 io.on('connection', (socket) => {
   console.log('💡 Jugador conectado:', socket.id);
 
   socket.on('room:create', (data) => {
     try {
-      const hostName = data?.hostName || 'Gustavo';
-      const { roomCode, roomState } = roomManager.createRoom(socket.id, hostName);
+      const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+      rooms[roomCode] = {
+        players: [{ id: socket.id, name: data?.hostName || 'Jugador 1', isBot: false }],
+        currentTurnIndex: 0
+      };
 
       socket.join(roomCode);
-      console.log(`🏰 Partida iniciada en sala ${roomCode} por ${hostName}`);
+      console.log(`🏰 Sala 4-players creada: ${roomCode}`);
 
-      const view = roomManager.getPlayerView(roomCode, socket.id);
-      socket.emit('room:created', { roomCode, view });
+      socket.emit('room:created', { roomCode });
+      io.to(roomCode).emit('room:player_update', { 
+        count: rooms[roomCode].players.length,
+        players: rooms[roomCode].players.map(p => p.name)
+      });
     } catch (err) {
       console.error('❌ Error creando sala:', err);
     }
@@ -51,28 +64,66 @@ io.on('connection', (socket) => {
   socket.on('room:join', (data) => {
     try {
       const { roomCode, playerName } = data;
-      const now = Date.now();
-      
-      let result = (roomManager as any).joinRoom(roomCode, socket.id, playerName || 'Rival', now);
+      const room = rooms[roomCode];
 
-      if (result) {
+      if (room && room.players.length < 4) {
+        room.players.push({ id: socket.id, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false });
         socket.join(roomCode);
-        console.log(`⚔️ Jugador ${socket.id} se unió a la sala ${roomCode}`);
 
-        const view = roomManager.getPlayerView(roomCode, socket.id);
-        
-        socket.emit('room:joined', { roomCode, view });
-        io.to(roomCode).emit('room:opponent_joined', { message: 'El rival se ha conectado.' });
+        socket.emit('room:joined', { roomCode });
+        io.to(roomCode).emit('room:player_update', {
+          count: room.players.length,
+          players: room.players.map(p => p.name)
+        });
+
+        if (room.players.length === 4) {
+          io.to(roomCode).emit('game:start');
+          io.to(roomCode).emit('game:turn', { activePlayer: room.players[0].name });
+        }
       } else {
-        socket.emit('error:msg', { message: 'No se pudo unirse a la sala' });
+        socket.emit('error:msg', { message: 'La sala está llena o no existe' });
       }
     } catch (err) {
-      console.error('❌ Error al unirse a sala:', err);
-      try {
-        socket.join(data?.roomCode);
-        socket.emit('room:joined', { roomCode: data?.roomCode, view: {} });
-        io.to(data?.roomCode).emit('room:opponent_joined', { message: 'Rival conectado' });
-      } catch (e) {}
+      console.error('❌ Error al unirse:', err);
+    }
+  });
+
+  socket.on('room:add_bot', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (room && room.players.length < 4) {
+      const botNumber = room.players.filter(p => p.isBot).length + 1;
+      const botName = `🤖 Bot ${botNumber}`;
+      room.players.push({ id: `bot_${Date.now()}_${botNumber}`, name: botName, isBot: true });
+
+      io.to(roomCode).emit('room:player_update', {
+        count: room.players.length,
+        players: room.players.map(p => p.name)
+      });
+
+      if (room.players.length === 4) {
+        io.to(roomCode).emit('game:start');
+        io.to(roomCode).emit('game:turn', { activePlayer: room.players[0].name });
+      }
+    }
+  });
+
+  socket.on('game:action', ({ roomCode, row, col }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    // Pasar el turno al siguiente jugador (ruleta de 4)
+    room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
+    const nextPlayer = room.players[room.currentTurnIndex];
+
+    io.to(roomCode).emit('game:turn', { activePlayer: nextPlayer.name });
+
+    // Si le toca el turno a un Bot, dispara automáticamente tras 1.5s
+    if (nextPlayer.isBot) {
+      setTimeout(() => {
+        room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
+        const afterBotPlayer = room.players[room.currentTurnIndex];
+        io.to(roomCode).emit('game:turn', { activePlayer: afterBotPlayer.name });
+      }, 1500);
     }
   });
 
@@ -83,5 +134,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
+  console.log(`🚀 Servidor de 4 Jugadores escuchando en puerto ${PORT}`);
 });
