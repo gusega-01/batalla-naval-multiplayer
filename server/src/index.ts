@@ -55,14 +55,14 @@ io.on('connection', (socket) => {
       };
 
       socket.join(roomCode);
-      socket.emit('room:created', { roomCode, playerId: socket.id });
+      socket.emit('room:created', { roomCode });
 
       io.to(roomCode).emit('room:player_update', { 
         count: rooms[roomCode].players.length,
         players: rooms[roomCode].players
       });
     } catch (err) {
-      console.error('❌ Error creando sala:', err);
+      console.error('❌ Error:', err);
     }
   });
 
@@ -72,26 +72,19 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
 
       if (room && room.players.length < 4) {
-        const name = playerName || `Jugador ${room.players.length + 1}`;
-        room.players.push({ id: socket.id, name, isBot: false });
+        room.players.push({ id: socket.id, name: playerName || `Jugador ${room.players.length + 1}`, isBot: false });
         socket.join(roomCode);
 
-        socket.emit('room:joined', { roomCode, playerId: socket.id });
-
+        socket.emit('room:joined', { roomCode });
         io.to(roomCode).emit('room:player_update', {
           count: room.players.length,
           players: room.players
         });
-
-        if (room.players.length === 4) {
-          io.to(roomCode).emit('game:start');
-          io.to(roomCode).emit('game:turn', { activePlayer: room.players[0].name });
-        }
       } else {
-        socket.emit('error:msg', { message: 'La sala está llena o no existe' });
+        socket.emit('error:msg', { message: 'Sala llena o no existe' });
       }
     } catch (err) {
-      console.error('❌ Error al unirse:', err);
+      console.error('❌ Error:', err);
     }
   });
 
@@ -99,47 +92,41 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (room && room.players.length < 4) {
       const botNumber = room.players.filter(p => p.isBot).length + 1;
-      const botName = `🤖 Bot ${botNumber}`;
-      room.players.push({ id: `bot_${Date.now()}_${botNumber}`, name: botName, isBot: true });
+      room.players.push({ id: `bot_${Date.now()}_${botNumber}`, name: `🤖 Bot ${botNumber}`, isBot: true });
 
       io.to(roomCode).emit('room:player_update', {
         count: room.players.length,
         players: room.players
       });
-
-      if (room.players.length === 4) {
-        io.to(roomCode).emit('game:start');
-        io.to(roomCode).emit('game:turn', { activePlayer: room.players[0].name });
-      }
     }
   });
 
-  socket.on('game:action', ({ roomCode, targetId, row, col, power }) => {
+  // RULETA DE OBJETIVO
+  socket.on('game:spin_roulette', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // Rotar ruleta de turnos al siguiente jugador
-    room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
-    const nextPlayer = room.players[room.currentTurnIndex];
+    // Saca un objetivo de los 4 posibles (incluyendo bots o a sí mismo)
+    const targetIdx = Math.floor(Math.random() * room.players.length);
+    const target = room.players[targetIdx];
 
-    io.to(roomCode).emit('game:turn', { activePlayer: nextPlayer.name });
+    io.to(roomCode).emit('game:roulette_result', {
+      message: `🎯 La ruleta cayó en: ${target.name}. ¡Todos los disparos van hacia él!`,
+      targetId: target.id,
+      targetName: target.name
+    });
+  });
 
-    // Si le toca el turno a un Bot, simula su ataque a los 1.5s
-    if (nextPlayer.isBot) {
-      setTimeout(() => {
-        room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
-        const afterBotPlayer = room.players[room.currentTurnIndex];
-        io.to(roomCode).emit('game:turn', { activePlayer: afterBotPlayer.name });
-      }, 1500);
-    }
+  socket.on('game:action', ({ roomCode, targetId, row, col, type }) => {
+    console.log(`Acción ${type} de jugador en sala ${roomCode}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('❌ Jugador desconectado:', socket.id);
+    console.log('❌ Desconectado:', socket.id);
   });
 });
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor listo con tablero táctico y cartas en puerto ${PORT}`);
+  console.log(`🚀 Servidor de Batalla Naval Táctica en puerto ${PORT}`);
 });

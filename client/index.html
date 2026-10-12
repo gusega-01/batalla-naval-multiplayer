@@ -8,12 +8,12 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
-    <title>Batalla Naval - Multijugador Táctico</title>
+    <title>Batalla Naval Táctica - 4 Jugadores</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { box-sizing: border-box; }
         body {
-            background-color: #0f172a;
+            background-color: #0b0f19;
             color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
@@ -23,330 +23,361 @@
             align-items: center;
         }
 
-        h1 { margin: 5px 0; font-size: 1.3rem; text-align: center; }
+        h1 { margin: 3px 0; font-size: 1.2rem; display: flex; align-items: center; gap: 6px; }
 
         .invite-card {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #151e33;
+            border: 1px solid #1e293b;
             padding: 10px;
             border-radius: 8px;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             width: 100%;
-            max-width: 450px;
+            max-width: 480px;
         }
 
         .invite-card input {
-            width: 85%;
+            width: 80%;
             padding: 6px;
-            background: #0f172a;
-            border: 1px solid #475569;
+            background: #090d16;
+            border: 1px solid #334155;
             color: #fff;
             border-radius: 4px;
             text-align: center;
             margin-bottom: 6px;
         }
 
-        /* Botones Compactos */
         .btn-copy {
-            padding: 6px 10px;
+            padding: 5px 10px;
             background: #2563eb;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
 
-        /* Panel de Ruleta y Energía Compacto */
-        .status-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #1e293b;
-            border: 1px solid #38bdf8;
-            padding: 8px 12px;
-            border-radius: 8px;
+        /* BARRA SUPERIOR DE ACCIONES Y ESTADO (Como antes pero adaptada) */
+        .game-bar {
+            background: #111827;
+            border: 1px solid #1f2937;
+            padding: 6px;
+            border-radius: 6px;
             width: 100%;
-            max-width: 450px;
-            margin-bottom: 8px;
+            max-width: 480px;
+            margin-bottom: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
         }
 
-        .energy-bar {
-            color: #facc15;
+        .status-badge {
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
             font-weight: bold;
-            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 3px;
         }
 
-        /* Pestañas para Celulares Compactas */
-        .board-tabs {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 8px;
+        .action-btn {
+            padding: 4px 6px;
+            border: 1px solid #374151;
+            background: #1f2937;
+            color: #e5e7eb;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .action-btn.active {
+            background: #2563eb;
+            border-color: #3b82f6;
+        }
+
+        /* CONSOLA DE EVENTOS (Estilo retro verde) */
+        .console-box {
+            background: #040711;
+            border: 1px solid #1e293b;
+            padding: 6px;
+            border-radius: 6px;
+            font-family: monospace;
             width: 100%;
-            max-width: 450px;
+            max-width: 480px;
+            font-size: 0.7rem;
+            color: #10b981;
+            height: 60px;
+            overflow-y: auto;
+            margin-bottom: 6px;
+            text-align: left;
+        }
+
+        /* Pestañas de Plantillas (Para celulares/PC compactas) */
+        .tab-bar {
+            display: flex;
+            gap: 3px;
+            width: 100%;
+            max-width: 480px;
+            margin-bottom: 6px;
         }
 
         .tab-btn {
             flex: 1;
             padding: 6px;
-            border: none;
-            background: #334155;
+            border: 1px solid #1e293b;
+            background: #151e33;
             color: #94a3b8;
+            font-size: 0.75rem;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 0.85rem;
+            white-space: nowrap;
         }
 
         .tab-btn.active {
-            background: #0284c7;
-            color: #ffffff;
-        }
-
-        /* Botonera de Seleccionar Rival Compacta */
-        .enemy-selector {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 8px;
-            width: 100%;
-            max-width: 450px;
-        }
-
-        .enemy-btn {
-            flex: 1;
-            padding: 5px;
-            background: #334155;
-            border: 1px solid #475569;
+            background: #2563eb;
             color: #fff;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            font-weight: bold;
+            border-color: #3b82f6;
         }
 
-        .enemy-btn.active {
-            background: #dc2626;
-            border-color: #ef4444;
-        }
-
-        /* TABLERO AGRANDADO */
-        .boards-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        /* TABLERO JUEGO GRANDE */
+        .board-container {
             width: 100%;
-            max-width: 450px;
-        }
-
-        .board-box {
-            display: none;
-            width: 100%;
+            max-width: 480px;
             text-align: center;
         }
-
-        .board-box.active { display: block; }
 
         .grid {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
-            gap: 3px;
-            background: #334155;
-            padding: 4px;
+            gap: 2px;
+            background: #1e293b;
+            padding: 3px;
             border-radius: 8px;
             aspect-ratio: 1;
             width: 100%;
-            max-width: 440px; /* Agrandado significativamente */
+            max-width: 440px;
             margin: 0 auto;
         }
 
         .cell {
-            background: #1e293b;
-            border-radius: 3px;
+            background: #0b0f19;
+            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 0.9rem;
-            user-select: none;
-        }
-
-        .cell:hover { background: #475569; }
-        .cell.ship { background: #0284c7; }
-        .cell.hit { background: #ef4444; }
-        .cell.miss { background: #64748b; }
-
-        /* Panel de Cartas de Poder / Ataques Especiales */
-        .cards-container {
-            display: flex;
-            gap: 6px;
-            margin-top: 10px;
-            width: 100%;
-            max-width: 450px;
-            justify-content: space-between;
-        }
-
-        .card {
-            background: #1e1b4b;
-            border: 1px solid #6366f1;
-            border-radius: 6px;
-            padding: 6px;
-            font-size: 0.75rem;
-            text-align: center;
-            cursor: pointer;
-            flex: 1;
-        }
-
-        .card:hover { background: #312e81; }
-        .card.disabled { opacity: 0.5; cursor: not-allowed; }
-
-        #consoleLog {
-            background: #0f172a;
-            border: 1px solid #334155;
-            padding: 6px;
-            border-radius: 6px;
-            font-family: monospace;
-            margin-bottom: 8px;
-            width: 100%;
-            max-width: 450px;
             font-size: 0.8rem;
-            text-align: center;
+            user-select: none;
+            position: relative;
         }
+
+        .cell:hover { background: #1e293b; }
+        .cell.ship { background: #1d4ed8; } /* Azul barcos */
+        .cell.hit { background: #b91c1c; } /* Rojo impacto */
+        .cell.miss { background: #374151; } /* Gris agua */
+        .cell.shield { border: 2px solid #3b82f6; } /* Escudo */
     </style>
 </head>
 <body>
 
-    <h1>🎮 Batalla Naval Táctica</h1>
+    <h1>🚢 Batalla Naval - Multijugador</h1>
 
-    <!-- Menú Inicial con Apodo obligatorio -->
+    <!-- Setup Nick -->
     <div id="setupMenu" class="invite-card">
-        <h3 style="margin:5px 0;">Tu Apodo para la Sala</h3>
-        <input type="text" id="playerNameInput" placeholder="Ej: Gustavo, Leo, etc." maxlength="12">
-        <hr style="border-color:#334155; margin:10px 0;">
+        <h3 style="margin:2px 0;">Ingresá tu Apodo</h3>
+        <input type="text" id="playerNameInput" placeholder="Apodo" maxlength="12">
+        <hr style="border-color:#1e293b; margin:8px 0;">
         <button class="btn-copy" style="background:#16a34a; width:100%; padding:8px;" onclick="crearSala()">✨ Crear Nueva Sala</button>
         <br><br>
-        <input type="text" id="roomCodeInput" placeholder="Código de Sala">
-        <button class="btn-copy" style="width:100%;" onclick="unirseASala()">Unirse a Sala</button>
+        <input type="text" id="roomCodeInput" placeholder="Código">
+        <button class="btn-copy" style="width:100%;" onclick="unirseASala()">Unirse</button>
     </div>
 
-    <!-- Sección de Invitaciones y Bots -->
+    <!-- Invitación QR / Bots -->
     <div id="inviteSection" class="invite-card" style="display: none;">
-        <p style="margin:0;"><b>¡Sala Creada!</b> Link de invitación:</p>
+        <p style="margin:2px 0;"><b>¡Sala Creada!</b> Link de invitación:</p>
         <input type="text" id="inviteLinkInput" readonly>
         <button class="btn-copy" onclick="copiarLink()">📋 Copiar Link</button>
         <br><br>
-        <img id="qrCodeImg" src="" alt="QR Sala" style="width: 120px; height: 120px; border-radius: 6px;">
+        <img id="qrCodeImg" src="" alt="QR" style="width: 100px; height: 100px; border-radius: 4px;">
+        <hr style="border-color:#1e293b; margin:6px 0;">
+        <div id="playerCountText" style="font-weight:bold; font-size:0.8rem; margin-bottom:4px;">Jugadores en sala: 1/4</div>
+        <button class="btn-copy" style="background:#8b5cf6; width:100%;" onclick="agregarBot()">🤖 Agregar Bot</button>
+    </div>
+
+    <!-- BARRA TÁCTICA ORIGINAL DE ATAQUES, ESCUDOS Y RUEDA -->
+    <div id="gameBar" class="game-bar" style="display: none;">
+        <div class="status-badge" style="background: #eab308; color:#000;">⚡ Energía: <span id="energyVal">10</span>/10</div>
+        <button class="action-btn" style="background:#2563eb;" onclick="girarRuleta()">🎯 Girar Ruleta</button>
+        <div class="status-badge" style="background: #1e1b4b; color:#818cf8;" id="objectiveBadge">Objetivo: ¡LIBRE!</div>
         
-        <hr style="border-color:#334155; margin:8px 0;">
-        <div id="playerCountText" style="font-weight:bold; margin-bottom:5px;">Jugadores en sala: 1/4</div>
-        <button class="btn-copy" style="background:#8b5cf6; width:100%;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
+        <!-- Acciones ofensivas y defensivas -->
+        <button class="action-btn active" id="btn-simple" onclick="setAtaque('simple', 0)">💥 Disparo (0⚡)</button>
+        <button class="action-btn" id="btn-cruz" onclick="setAtaque('cruz', 4)">🎯 Cruz (4⚡)</button>
+        <button class="action-btn" id="btn-sonar" onclick="setAtaque('sonar', 2)">📡 Sonar (2⚡)</button>
+        <button class="action-btn" id="btn-lluvia" onclick="setAtaque('lluvia', 6)">🚀 Lluvia (6⚡)</button>
+        <button class="action-btn" id="btn-escudo" onclick="setAtaque('escudo', 2)">🛡️ Escudo (2⚡)</button>
+        <button class="action-btn" id="btn-mover" onclick="setAtaque('mover', 2)">⚓ Mover (2⚡)</button>
+        <button class="action-btn" id="btn-reparar" onclick="setAtaque('reparar', 3)">🛠️ Reparar (3⚡)</button>
     </div>
 
-    <!-- Cabecera de Ruleta y Energía -->
-    <div id="statusHeader" class="status-header" style="display: none;">
-        <div>🎲 Turno: <b id="activePlayerText" style="color:#f59e0b;">Esperando...</b></div>
-        <div class="energy-bar">⚡ Energía: <span id="energyVal">10</span>/10</div>
-    </div>
+    <!-- Consola táctica -->
+    <div id="consoleLog" class="console-box">Ingresá tu apodo para empezar...</div>
 
-    <div id="consoleLog">Ingresá tu apodo para empezar</div>
+    <!-- PESTAÑAS DE PLANTILLAS (Mi flota y rivales) -->
+    <div class="tab-bar" id="tabBar" style="display: none;"></div>
 
-    <!-- Pestañas Celulares (Compactas) -->
-    <div class="board-tabs" id="boardTabs" style="display: none;">
-        <button class="tab-btn active" id="tabMyBoard" onclick="switchBoard('myBoard')">🛡️ Mi Flota</button>
-        <button class="tab-btn" id="tabEnemyBoard" onclick="switchBoard('enemyBoard')">🎯 Radar Enemigo</button>
-    </div>
-
-    <!-- Seleccionador de Rival (Botonera Compacta) -->
-    <div id="enemySelector" class="enemy-selector" style="display: none;"></div>
-
-    <!-- TABLEROS AGRANDADOS -->
-    <div class="boards-container">
-        <div id="myBoardContainer" class="board-box">
-            <div id="myGrid" class="grid"></div>
-        </div>
-
-        <div id="enemyBoardContainer" class="board-box">
-            <div id="enemyGrid" class="grid"></div>
-        </div>
-    </div>
-
-    <!-- Pestañas / Cartas de Poder Reincorporadas -->
-    <div id="cardsPanel" class="cards-container" style="display: none;">
-        <div class="card" onclick="usarCarta('bomba', 3)">💣 Bomba 2x2<br><small>(⚡3)</small></div>
-        <div class="card" onclick="usarCarta('radar', 2)">📡 Radar<br><small>(⚡2)</small></div>
-        <div class="card" onclick="usarCarta('linea', 4)">🚀 Disparo Línea<br><small>(⚡4)</small></div>
-        <div class="card" style="border-color:#10b981;" onclick="reponerEnergia()">⚡ Recargar</div>
+    <!-- TABLERO PRINCIPAL AGRANDADO -->
+    <div id="boardContainer" class="board-container" style="display: none;">
+        <div id="grid" class="grid"></div>
     </div>
 
     <script>
         const socket = io('https://batalla-naval-multiplayer-4zh3.onrender.com');
         let currentRoomCode = null;
-        let selectedEnemyId = null;
+        let activeTabId = 'my'; // 'my' o rival ID
         let enemyPlayers = [];
         let myEnergy = 10;
-        let selectedPower = 'simple';
+        let selectedAtaque = 'simple';
+        let ataqueCosto = 0;
 
-        function getPlayerName() {
-            const name = document.getElementById('playerNameInput').value.trim();
-            if (!name) {
-                alert('Por favor ingresá tu apodo antes de continuar');
-                return null;
-            }
-            return name;
+        function appendLog(text) {
+            const consoleBox = document.getElementById('consoleLog');
+            consoleBox.innerHTML += `<div>> ${text}</div>`;
+            consoleBox.scrollTop = consoleBox.scrollHeight;
         }
 
-        function initGrids() {
-            const myGridEl = document.getElementById('myGrid');
-            const enemyGridEl = document.getElementById('enemyGrid');
-            myGridEl.innerHTML = '';
-            enemyGridEl.innerHTML = '';
-
+        function initGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
             for (let r = 0; r < 10; r++) {
                 for (let c = 0; c < 10; c++) {
-                    const myCell = document.createElement('div');
-                    myCell.className = 'cell';
-                    myCell.dataset.row = r;
-                    myCell.dataset.col = c;
-                    myGridEl.appendChild(myCell);
-
-                    const enemyCell = document.createElement('div');
-                    enemyCell.className = 'cell';
-                    enemyCell.dataset.row = r;
-                    enemyCell.dataset.col = c;
-                    enemyCell.onclick = () => disparar(r, c, enemyCell);
-                    enemyGridEl.appendChild(enemyCell);
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.onclick = () => onCellClick(r, c, cell);
+                    gridEl.appendChild(cell);
                 }
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            initGrids();
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomFromUrl = urlParams.get('room');
-            if (roomFromUrl) {
-                document.getElementById('roomCodeInput').value = roomFromUrl;
+        function renderTabs(players) {
+            const tabBar = document.getElementById('tabBar');
+            tabBar.innerHTML = '';
+
+            // Pestaña propia
+            const myBtn = document.createElement('button');
+            myBtn.className = 'tab-btn' + (activeTabId === 'my' ? ' active' : '');
+            myBtn.innerText = '🛡️ Mi Flota (Tú)';
+            myBtn.onclick = () => {
+                activeTabId = 'my';
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                myBtn.classList.add('active');
+                initGrid(); // Recarga vista propia
+            };
+            tabBar.appendChild(myBtn);
+
+            // Pestañas de rivales y bots
+            enemyPlayers = players.filter(p => p.id !== socket.id);
+            enemyPlayers.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'tab-btn' + (activeTabId === p.id ? ' active' : '');
+                btn.innerText = `${p.isBot ? '🤖' : '👤'} ${p.name}`;
+                btn.onclick = () => {
+                    activeTabId = p.id;
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    initGrid(); // Recarga vista de radar
+                };
+                tabBar.appendChild(btn);
+            });
+        }
+
+        function setAtaque(tipo, costo) {
+            selectedAtaque = tipo;
+            ataqueCosto = costo;
+            document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById(`btn-${tipo}`);
+            if (btn) btn.classList.add('active');
+            appendLog(`Habilidad seleccionada: ${tipo.toUpperCase()} (${costo}⚡)`);
+        }
+
+        function girarRuleta() {
+            if (myEnergy < 2) return alert('⚡ Energía insuficiente (2⚡)');
+            myEnergy -= 2;
+            document.getElementById('energyVal').innerText = myEnergy;
+            appendLog('🎲 Girando ruleta de objetivo...');
+            socket.emit('game:spin_roulette', { roomCode: currentRoomCode });
+        }
+
+        socket.on('game:roulette_result', ({ message, targetId, targetName }) => {
+            appendLog(message);
+            const badge = document.getElementById('objectiveBadge');
+            badge.innerText = `Objetivo: ${targetName.toUpperCase()}`;
+            if (targetId === socket.id) {
+                badge.style.background = '#059669'; // Escudo/Reparacion
+            } else {
+                badge.style.background = '#dc2626'; // Atacar
             }
         });
 
+        function onCellClick(row, col, cellEl) {
+            // Defensas en tablero propio
+            if (activeTabId === 'my') {
+                if (selectedAtaque === 'escudo' || selectedAtaque === 'reparar' || selectedAtaque === 'mover') {
+                    if (myEnergy < ataqueCosto) return alert('⚡ Energía insuficiente');
+                    myEnergy -= ataqueCosto;
+                    document.getElementById('energyVal').innerText = myEnergy;
+                    cellEl.classList.add(selectedAtaque === 'escudo' ? 'shield' : 'miss');
+                    appendLog(`Aplicado ${selectedAtaque.toUpperCase()} en (${row},${col})`);
+                    socket.emit('game:action', { roomCode: currentRoomCode, row, col, type: selectedAtaque, targetId: 'my' });
+                    setAtaque('simple', 0);
+                } else {
+                    alert('Solo podés usar Escudo/Reparación/Mover en tu propia flota');
+                }
+                return;
+            }
+
+            // Ataques a rivales
+            if (myEnergy < ataqueCosto) return alert('⚡ Energía insuficiente');
+            myEnergy -= ataqueCosto;
+            document.getElementById('energyVal').innerText = myEnergy;
+
+            cellEl.classList.add('hit');
+            appendLog(`Disparo ${selectedAtaque.toUpperCase()} en fila ${row}, col ${col}`);
+            socket.emit('game:action', { 
+                roomCode: currentRoomCode, 
+                targetId: activeTabId, 
+                row, 
+                col, 
+                type: selectedAtaque 
+            });
+
+            setAtaque('simple', 0);
+        }
+
         function crearSala() {
-            const name = getPlayerName();
-            if (!name) return;
+            const name = document.getElementById('playerNameInput').value.trim();
+            if (!name) return alert('Por favor ingresá tu apodo');
             socket.emit('room:create', { hostName: name });
         }
 
         function unirseASala() {
-            const name = getPlayerName();
-            if (!name) return;
+            const name = document.getElementById('playerNameInput').value.trim();
+            if (!name) return alert('Por favor ingresá tu apodo');
             const code = document.getElementById('roomCodeInput').value.trim();
-            if (!code) return alert('Ingresá un código válido');
+            if (!code) return alert('Ingresá un código');
             socket.emit('room:join', { roomCode: code, playerName: name });
         }
 
         function agregarBot() {
-            const code = currentRoomCode || document.getElementById('roomCodeInput').value.trim();
-            if (!code) return alert('No hay código de sala activo');
-            socket.emit('room:add_bot', { roomCode: code });
+            socket.emit('room:add_bot', { roomCode: currentRoomCode });
         }
 
         socket.on('room:created', ({ roomCode }) => {
@@ -356,114 +387,30 @@
             document.getElementById('inviteLinkInput').value = inviteUrl;
             document.getElementById('qrCodeImg').src = `https://quickchart.io/qr?text=${encodeURIComponent(inviteUrl)}&size=200`;
             document.getElementById('inviteSection').style.display = 'block';
-            document.getElementById('consoleLog').innerText = `Sala ${roomCode} creada. Agregá bots o compartí el link.`;
+            appendLog(`Sala ${roomCode} creada. Agregá bots o compartí el link.`);
         });
 
         socket.on('room:joined', ({ roomCode }) => {
             currentRoomCode = roomCode;
             document.getElementById('setupMenu').style.display = 'none';
-            document.getElementById('consoleLog').innerText = `Te uniste a la sala ${roomCode}. Esperando a los demás...`;
+            appendLog(`Te uniste a la sala ${roomCode}. Esperando completar...`);
         });
 
         socket.on('room:player_update', ({ count, players }) => {
             document.getElementById('playerCountText').innerText = `Jugadores en sala: ${count}/4`;
-            document.getElementById('consoleLog').innerText = `Jugadores (${count}/4): ${players.map(p => p.name).join(', ')}`;
-
-            enemyPlayers = players.filter(p => p.id !== socket.id);
-            renderEnemyButtons();
-
-            if (count === 4) {
-                iniciarPantallaJuego();
-            }
+            appendLog(`Jugadores (${count}/4): ${players.map(p => p.name).join(', ')}`);
+            renderTabs(players);
+            if (count === 4) iniciarJuego();
         });
 
-        function renderEnemyButtons() {
-            const container = document.getElementById('enemySelector');
-            container.innerHTML = '';
-            enemyPlayers.forEach((p, idx) => {
-                const btn = document.createElement('button');
-                btn.className = 'enemy-btn' + (idx === 0 ? ' active' : '');
-                btn.innerText = `🎯 ${p.name}`;
-                btn.onclick = () => seleccionarRival(p.id, p.name, btn);
-                container.appendChild(btn);
-            });
-            if (enemyPlayers.length > 0) {
-                selectedEnemyId = enemyPlayers[0].id;
-            }
-        }
-
-        function seleccionarRival(id, name, btnEl) {
-            selectedEnemyId = id;
-            document.querySelectorAll('.enemy-btn').forEach(b => b.classList.remove('active'));
-            btnEl.classList.add('active');
-            initGrids();
-        }
-
-        socket.on('game:start', () => {
-            iniciarPantallaJuego();
-            document.getElementById('consoleLog').innerText = `¡Comienza la partida táctica de 4 jugadores!`;
-        });
-
-        socket.on('game:turn', ({ activePlayer }) => {
-            document.getElementById('activePlayerText').innerText = activePlayer;
-            document.getElementById('consoleLog').innerText = `Turno de: ${activePlayer}`;
-        });
-
-        function usarCarta(poder, costo) {
-            if (myEnergy < costo) {
-                alert('⚡ No tenés suficiente energía');
-                return;
-            }
-            selectedPower = poder;
-            alert(`Poder activado: ${poder.toUpperCase()} (Costo: ⚡${costo}). Tocá una celda del radar.`);
-        }
-
-        function reponerEnergia() {
-            if (myEnergy < 10) {
-                myEnergy = Math.min(10, myEnergy + 3);
-                document.getElementById('energyVal').innerText = myEnergy;
-                document.getElementById('consoleLog').innerText = `⚡ Recargaste 3 puntos de energía.`;
-            }
-        }
-
-        function disparar(row, col, cellEl) {
-            if (!selectedEnemyId) return alert('Seleccioná un rival primero');
-            
-            // Costo estándar disparo simple
-            let costo = 1;
-            if (selectedPower === 'bomba') costo = 3;
-            if (selectedPower === 'radar') costo = 2;
-            if (selectedPower === 'linea') costo = 4;
-
-            if (myEnergy < costo) {
-                alert('⚡ No tenés suficiente energía para este ataque');
-                return;
-            }
-
-            myEnergy -= costo;
-            document.getElementById('energyVal').innerText = myEnergy;
-            cellEl.classList.add('miss');
-
-            socket.emit('game:action', { 
-                roomCode: currentRoomCode, 
-                targetId: selectedEnemyId, 
-                row, 
-                col, 
-                power: selectedPower 
-            });
-
-            selectedPower = 'simple'; // Reset a disparo normal
-        }
-
-        function iniciarPantallaJuego() {
+        function iniciarJuego() {
             document.getElementById('setupMenu').style.display = 'none';
             document.getElementById('inviteSection').style.display = 'none';
-            document.getElementById('statusHeader').style.display = 'flex';
-            document.getElementById('cardsPanel').style.display = 'flex';
-            document.getElementById('enemySelector').style.display = 'flex';
-            document.getElementById('boardTabs').style.display = 'flex';
-            document.getElementById('myBoardContainer').classList.add('active');
-            switchBoard('myBoard');
+            document.getElementById('gameBar').style.display = 'flex';
+            document.getElementById('tabBar').style.display = 'flex';
+            document.getElementById('boardContainer').style.display = 'block';
+            initGrid();
+            appendLog('¡La batalla naval táctica de 4 jugadores ha comenzado!');
         }
 
         function copiarLink() {
@@ -471,25 +418,6 @@
             copyText.select();
             navigator.clipboard.writeText(copyText.value);
             alert('¡Link de invitación copiado!');
-        }
-
-        function switchBoard(tab) {
-            const myBoard = document.getElementById('myBoardContainer');
-            const enemyBoard = document.getElementById('enemyBoardContainer');
-            const tabMy = document.getElementById('tabMyBoard');
-            const tabEnemy = document.getElementById('tabEnemyBoard');
-
-            if (tab === 'myBoard') {
-                myBoard.classList.add('active');
-                enemyBoard.classList.remove('active');
-                tabMy.classList.add('active');
-                tabEnemy.classList.remove('active');
-            } else {
-                enemyBoard.classList.add('active');
-                myBoard.classList.remove('active');
-                tabEnemy.classList.add('active');
-                tabMy.classList.remove('active');
-            }
         }
     </script>
 </body>
