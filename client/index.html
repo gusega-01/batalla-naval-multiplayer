@@ -7,7 +7,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
-      background-color: #121212;
+      background-color: #0b0f19;
       color: #ffffff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
@@ -20,7 +20,8 @@
     h1 { margin: 5px 0; font-size: 1.3rem; }
 
     .invite-card {
-      background: #1e1e1e;
+      background: rgba(30, 30, 30, 0.85);
+      backdrop-filter: blur(8px);
       border: 1px solid #333;
       padding: 12px;
       border-radius: 8px;
@@ -88,7 +89,6 @@
     .draggable-ship.selected { background-color: #2980b9; border-style: solid; }
     .draggable-ship.placed { opacity: 0.4; cursor: not-allowed; border-style: solid; border-color: #34495e; }
 
-    /* ANIMACIONES Y EFECTOS TITILANTES */
     @keyframes pulseGlow {
       0% { box-shadow: 0 0 4px #f1c40f; transform: scale(1); }
       50% { box-shadow: 0 0 16px #f1c40f; transform: scale(1.04); }
@@ -120,7 +120,8 @@
     }
 
     .skills-panel {
-      background-color: #1e1e1e;
+      background: rgba(30, 30, 30, 0.85);
+      backdrop-filter: blur(8px);
       border: 1px solid #333;
       border-radius: 8px;
       padding: 8px;
@@ -225,44 +226,92 @@
     .tab-btn.active { background: #007bff; color: #fff; border-color: #0056b3; }
     .tab-btn.target-locked { animation: pulseTab 1s infinite ease-in-out; }
 
-    .board-container {
+    /* ESTILO DE MARCO Y TABLERO TÁCTICO */
+    .tactical-board-wrapper {
+      background: #4a2e1b;
+      border: 6px solid #2d1a0e;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 8px 20px rgba(0,0,0,0.7);
+      border-radius: 8px;
+      padding: 6px;
       width: 100%;
-      max-width: 480px;
+      max-width: 460px;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    .grid-header-cols {
+      display: grid;
+      grid-template-columns: 24px repeat(10, 1fr);
+      gap: 2px;
+      margin-bottom: 4px;
+      font-weight: bold;
+      font-size: 12px;
+      color: #f1c40f;
       text-align: center;
+    }
+
+    .board-body-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .grid-header-rows {
+      display: grid;
+      grid-template-rows: repeat(10, 1fr);
+      width: 24px;
+      font-weight: bold;
+      font-size: 12px;
+      color: #f1c40f;
+      text-align: center;
+      gap: 2px;
+      aspect-ratio: 1/10;
+    }
+
+    .grid-header-rows div {
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .grid {
       display: grid;
       grid-template-columns: repeat(10, 1fr);
       gap: 2px;
-      background: #222;
-      padding: 4px;
-      border-radius: 8px;
+      background: #0284c7;
+      padding: 2px;
+      border-radius: 4px;
       aspect-ratio: 1;
-      width: 100%;
-      max-width: 440px;
-      margin: 0 auto;
+      flex: 1;
+      box-shadow: inset 0 0 12px rgba(0,0,0,0.5);
     }
 
     .cell {
-      background-color: #2a2a2a;
+      background-color: #0369a1;
+      border: 1px solid rgba(255,255,255,0.15);
       border-radius: 2px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
+      font-size: 13px;
       user-select: none;
       cursor: pointer;
+      position: relative;
     }
 
-    .cell.ship { background-color: #2980b9; }
-    .cell.water { background-color: #3498db; color: white; }
-    .cell.hit { background-color: #e74c3c; color: white; }
-    .cell.sunk { background-color: #2ecc71; color: black; font-weight: bold; }
-    .cell.sonar { background-color: #f1c40f; color: black; }
-    .cell.shielded { border: 2px solid #1abc9c; }
-    .cell.drag-over { background-color: #8e44ad !important; }
-    .cell.selected-move { border: 2px solid #f1c40f; }
+    .cell.ship { background-color: #2563eb; }
+    .cell.water { background-color: #0284c7; color: white; }
+    .cell.hit {
+      background-color: #dc2626;
+      color: #fef08a;
+      font-size: 16px;
+      font-weight: bold;
+      text-shadow: 0 0 6px #7f1d1d;
+    }
+    .cell.sunk { background-color: #15803d; color: black; font-weight: bold; }
+    .cell.sonar { background-color: #f59e0b; color: black; }
+    .cell.shielded { border: 2px solid #10b981; }
+    .cell.drag-over { background-color: #9333ea !important; }
+    .cell.selected-move { border: 2px solid #f59e0b; }
 
     .winner-modal {
       position: fixed;
@@ -315,7 +364,7 @@
     <div class="ship-selector" id="shipSelector"></div>
 
     <div style="margin-top: 8px;">
-      <button class="btn-success" id="btnConfirmFleet" onclick="confirmarFlota()" disabled>✅ Confirmar Flota y Empezar</button>
+      <button class="btn-success" id="btnConfirmFleet" onclick="confirmarFlota()" disabled>✅ Confirmar Flota (8 Barcos)</button>
     </div>
   </div>
 
@@ -345,8 +394,22 @@
 
   <div class="tab-bar" id="tabBar" style="display: none;"></div>
 
+  <!-- TABLERO TÁCTICO CON COORDENADAS A-J Y 1-10 -->
   <div class="board-container" id="boardContainer" style="display: none;">
-    <div id="grid" class="grid"></div>
+    <div class="tactical-board-wrapper">
+      <div class="grid-header-cols">
+        <div></div>
+        <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div>
+        <div>6</div><div>7</div><div>8</div><div>9</div><div>10</div>
+      </div>
+      <div class="board-body-row">
+        <div class="grid-header-rows">
+          <div>A</div><div>B</div><div>C</div><div>D</div><div>E</div>
+          <div>F</div><div>G</div><div>H</div><div>I</div><div>J</div>
+        </div>
+        <div id="grid" class="grid"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Cartel de Victoria Modal -->
@@ -363,13 +426,16 @@
     let activePlayerObj = null;
     let selectedSetupShipId = null;
 
+    // Lista de 8 barcos por jugador
     const availableShips = [
       { id: 'carrier', name: 'Portaaviones 🛳️', length: 4 },
-      { id: 'battleship', name: 'Acorazado 🚢', length: 3 },
-      { id: 'cruiser1', name: 'Crucero A 🚤', length: 3 },
-      { id: 'destroyer', name: 'Destructor ⛵', length: 2 },
+      { id: 'battleship1', name: 'Acorazado Alpha 🚢', length: 3 },
+      { id: 'battleship2', name: 'Acorazado Beta 🚢', length: 3 },
+      { id: 'cruiser1', name: 'Crucero 1 🚤', length: 2 },
+      { id: 'cruiser2', name: 'Crucero 2 🚤', length: 2 },
       { id: 'patrol1', name: 'Lancha 1 🛥️', length: 1 },
-      { id: 'patrol2', name: 'Lancha 2 🛥️', length: 1 }
+      { id: 'patrol2', name: 'Lancha 2 🛥️', length: 1 },
+      { id: 'patrol3', name: 'Lancha 3 🛥️', length: 1 }
     ];
 
     let isHorizontal = true;
@@ -570,7 +636,7 @@
       if (placedShips.length < availableShips.length) return;
 
       document.getElementById('placementPanel').style.display = 'none';
-      log('✅ Flota lista. Esperando que los demás confirmen...');
+      log('✅ Flota lista (8 barcos). Esperando que los demás confirmen...');
 
       socket.emit('player:confirm_fleet', { roomCode: currentRoomCode, grid: myGrid, ships: placedShips });
     }
@@ -686,8 +752,6 @@
 
       enemyPlayers.forEach(p => {
         if (!boardHistories[p.id]) boardHistories[p.id] = {};
-        
-        // EFECTO TITILANTE EN LAS PESTAÑAS OBJETIVO
         const isLockedTarget = myTurn && rouletteSpun && (isFreeChoice || currentTargetId === p.id);
 
         const btn = document.createElement('button');

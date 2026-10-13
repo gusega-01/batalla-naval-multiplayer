@@ -53,16 +53,20 @@ interface RoomData {
 
 const rooms: Record<string, RoomData> = {};
 
+// Configuración de 8 barcos
+const shipConfigs = [
+  { id: 'carrier', length: 4 },
+  { id: 'battleship1', length: 3 },
+  { id: 'battleship2', length: 3 },
+  { id: 'cruiser1', length: 2 },
+  { id: 'cruiser2', length: 2 },
+  { id: 'patrol1', length: 1 },
+  { id: 'patrol2', length: 1 },
+  { id: 'patrol3', length: 1 }
+];
+
 function generarFlotaBot(): { grid: (string | null)[][], ships: ShipInfo[] } {
   const grid: (string | null)[][] = Array(10).fill(null).map(() => Array(10).fill(null));
-  const shipConfigs = [
-    { id: 'carrier', length: 4 },
-    { id: 'battleship', length: 3 },
-    { id: 'cruiser1', length: 3 },
-    { id: 'destroyer', length: 2 },
-    { id: 'patrol1', length: 1 },
-    { id: 'patrol2', length: 1 }
-  ];
   const ships: ShipInfo[] = [];
 
   shipConfigs.forEach(s => {
@@ -108,7 +112,6 @@ function verificarYMarcarHundidos(player: Player, boardHistory: Record<string, s
     }
   });
 
-  // Verificar si le quedaron barcos vivos
   const tieneBarcosVivos = player.ships.some(ship => {
     return ship.coords.some(c => {
       const key = `${c.r}_${c.c}`;
@@ -157,7 +160,6 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (!room) return socket.emit('error:msg', { message: 'La sala no existe' });
 
-    // Reconexión si se cayó de la partida
     const pExistente = room.players.find(p => p.name === playerName);
     if (pExistente && pExistente.disconnectedTimeout) {
       clearTimeout(pExistente.disconnectedTimeout);
@@ -355,7 +357,6 @@ io.on('connection', (socket) => {
 
     room.rouletteSpun = false;
 
-    // Buscar el siguiente jugador que NO esté eliminado
     let intentos = 0;
     do {
       room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length;
@@ -396,13 +397,12 @@ io.on('connection', (socket) => {
   }
 
   socket.on('disconnect', () => {
-    // Manejo de reconexión de 1 minuto
     for (const roomCode in rooms) {
       const room = rooms[roomCode];
       const player = room.players.find(p => p.id === socket.id);
       if (player && !player.isBot) {
         player.disconnectedTimeout = setTimeout(() => {
-          player.isBot = true; // Se vuelve Bot definitivo si vence el minuto
+          player.isBot = true;
         }, 60000);
       }
     }
