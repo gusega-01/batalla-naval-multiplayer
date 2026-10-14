@@ -374,6 +374,7 @@ io.on('connection', (socket) => {
 
     io.to(roomCode).emit('game:turn_changed', { activePlayer: nextPlayer });
 
+    // DEMORA DE 2 SEGUNDOS (2000 MS) PARA DARLE TIEMPO AL MISIL VISUAL
     if (nextPlayer.isBot || nextPlayer.disconnectedTimeout) {
       setTimeout(() => {
         const objetivos = room.players.filter(p => p.id !== nextPlayer.id && !p.isEliminated);
@@ -399,7 +400,7 @@ io.on('connection', (socket) => {
 
         chequearGanador(roomCode);
         if (!room.gameOver) avanzarTurno(roomCode);
-      }, 1500);
+      }, 2000);
     }
   }
 
