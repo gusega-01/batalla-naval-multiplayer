@@ -302,14 +302,14 @@
     .cell.drag-over { background-color: rgba(147, 51, 234, 0.8) !important; }
     .cell.selected-move { border: 2px solid #f59e0b; }
 
-    /* MISIL NÍTIDO CAÍDA DIRECTA DE PUNTA POR KEYFRAMES */
+    /* ANIMACIÓN DEL MISIL (CAPA Z-INDEX SUPREMA Y KEYFRAME) */
     .missile-projectile {
       position: fixed;
-      width: 30px;
-      height: 70px;
+      width: 32px;
+      height: 80px;
       background: url('assets/missile.png') no-repeat center center;
       background-size: contain;
-      z-index: 9999999 !important;
+      z-index: 99999999 !important;
       pointer-events: none;
       image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
@@ -317,10 +317,10 @@
 
     @keyframes dropMissile {
       0% {
-        transform: translate(60px, -250px) rotate(135deg);
+        transform: translate(80px, -280px) rotate(135deg);
         opacity: 0;
       }
-      15% {
+      20% {
         opacity: 1;
       }
       100% {
@@ -329,14 +329,14 @@
       }
     }
 
-    /* POPUP DE TURNO 1.5s Y DESAPARECE */
+    /* NOTIFICACIÓN FLOTANTE */
     .turn-popup-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 99999;
+      z-index: 999999;
       pointer-events: none;
       opacity: 0;
       transform: scale(0.6);
@@ -525,6 +525,7 @@
 
     let shipToMove = null;
     let turnPopupTimer = null;
+    let isAnimatingMissile = false; // INTERRUPTOR DE SEGURIDAD
 
     function log(msg) {
       const el = document.getElementById('consoleLog');
@@ -721,8 +722,10 @@
       actualizarTurno(activePlayer);
     });
 
-    /* MOSTRAR CARTEL 1.5 SEGUNDOS Y OCULTARLO LIMPIANDO EL DOM */
+    /* MOSTRAR CARTEL 1.5 SEGUNDOS Y DESAPARECER */
     function mostrarCartelTemporal(esMiTurno) {
+      if (isAnimatingMissile) return; // NO MOSTRAR SI EL MISIL ESTÁ EN VUELO
+
       if (turnPopupTimer) clearTimeout(turnPopupTimer);
 
       const popup = document.getElementById('turnPopup');
@@ -733,7 +736,7 @@
 
       turnPopupTimer = setTimeout(() => {
         popup.classList.remove('show');
-      }, 1500); // DURA 1.5 SEGUNDOS Y DESAPARECE
+      }, 1500);
     }
 
     function actualizarTurno(activePlayer) {
@@ -763,7 +766,15 @@
       currentTargetId = undefined;
       isFreeChoice = false;
       document.getElementById('targetInfo').innerText = '🎯 Objetivo: Pendiente';
-      actualizarTurno(activePlayer);
+      
+      // SI EL MISIL ESTÁ EN ANIMACIÓN, ESPERAMOS A QUE TERMINE PARA CAMBIAR DE TURNO
+      if (isAnimatingMissile) {
+        setTimeout(() => {
+          actualizarTurno(activePlayer);
+        }, 800);
+      } else {
+        actualizarTurno(activePlayer);
+      }
     });
 
     function girarRuleta() {
@@ -965,11 +976,16 @@
       renderShipsOverlay();
     }
 
-    /* ANIMACIÓN DEL MISIL CON KEYFRAMES (1 SEGUNDO DE DURACIÓN) */
+    /* ANIMACIÓN DEL MISIL CON INTERRUPTOR DE ESTADO (1.0s DEDICADO) */
     function animarMisil(targetCell, callback) {
+      isAnimatingMissile = true; // BLOQUEA INTERRUPCIONES DE CARTELES
+
+      // OCULTAR CUALQUIER POPUP ACTIVO INMEDIATAMENTE
+      document.getElementById('turnPopup').classList.remove('show');
+
       const rect = targetCell.getBoundingClientRect();
-      const targetX = rect.left + rect.width / 2 - 15;
-      const targetY = rect.top + rect.height / 2 - 35;
+      const targetX = rect.left + rect.width / 2 - 16;
+      const targetY = rect.top + rect.height / 2 - 40;
 
       const missile = document.createElement('div');
       missile.className = 'missile-projectile';
@@ -982,6 +998,7 @@
 
       setTimeout(() => {
         missile.remove();
+        isAnimatingMissile = false; // LIBERA EL BLOQUEO AL IMPACTAR
         if (callback) callback();
       }, 1000);
     }
