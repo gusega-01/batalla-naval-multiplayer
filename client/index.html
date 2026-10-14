@@ -27,28 +27,26 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-top: 80px; /* Margen para apreciar el título del fondo en PC */
+      margin-top: 80px;
     }
 
-    /* TRANSPARENCIA CRISTALINA MÁXIMA EN BOTONERAS */
+    /* CONTENEDORES SIN NINGÚN DIFUMINADO/BLUR BORROSO */
     .invite-card, .skills-panel {
-      background: rgba(15, 23, 42, 0.25) !important;
-      backdrop-filter: blur(8px) !important;
-      -webkit-backdrop-filter: blur(8px) !important;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(15, 23, 42, 0.75) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2);
       padding: 10px;
       border-radius: 12px;
       text-align: center;
       margin-bottom: 8px;
       width: 100%;
       box-sizing: border-box;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
     }
 
     .invite-card input {
       width: 80%;
       padding: 8px;
-      background: rgba(9, 13, 22, 0.5);
+      background: rgba(9, 13, 22, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: #fff;
       border-radius: 6px;
@@ -80,7 +78,7 @@
     }
 
     .draggable-ship {
-      background-color: rgba(30, 41, 59, 0.6);
+      background-color: rgba(30, 41, 59, 0.9);
       color: white;
       border: 2px dashed #f1c40f;
       padding: 6px 10px;
@@ -106,26 +104,6 @@
       100% { border-color: #f1c40f; color: #f1c40f; }
     }
 
-    .turn-banner {
-      background: rgba(30, 27, 75, 0.35);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      border: 2px solid #6366f1;
-      padding: 8px;
-      border-radius: 8px;
-      text-align: center;
-      font-weight: bold;
-      width: 100%;
-      margin-bottom: 8px;
-      color: #f1c40f;
-      box-sizing: border-box;
-    }
-
-    .turn-banner.my-turn-active {
-      animation: pulseGlow 1.2s infinite ease-in-out;
-      border-color: #f1c40f;
-    }
-
     .skills-panel {
       display: flex;
       align-items: center;
@@ -144,7 +122,7 @@
     }
 
     .skill-btn {
-      background-color: rgba(30, 41, 59, 0.5);
+      background-color: rgba(30, 41, 59, 0.9);
       color: white;
       border: 1px solid rgba(255, 255, 255, 0.2);
       padding: 6px 10px;
@@ -154,7 +132,7 @@
       font-size: 12px;
     }
 
-    .skill-btn.defensive { background-color: rgba(15, 118, 110, 0.5); border-color: #14b8a6; }
+    .skill-btn.defensive { background-color: rgba(15, 118, 110, 0.9); border-color: #14b8a6; }
     .skill-btn.active { border-color: #f1c40f; background-color: #ea580c; }
 
     .roulette-btn {
@@ -173,10 +151,10 @@
       background-color: #a855f7;
     }
 
-    .roulette-btn:disabled { background-color: rgba(71, 85, 105, 0.5); cursor: not-allowed; animation: none; }
+    .roulette-btn:disabled { background-color: rgba(71, 85, 105, 0.8); cursor: not-allowed; animation: none; }
 
     .target-badge {
-      background-color: rgba(30, 41, 59, 0.5);
+      background-color: rgba(30, 41, 59, 0.9);
       color: #f1c40f;
       padding: 5px 10px;
       border-radius: 6px;
@@ -186,9 +164,8 @@
     }
 
     #consoleLog {
-      background-color: rgba(15, 23, 42, 0.35);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background-color: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 8px;
       padding: 8px;
       height: 60px;
@@ -212,9 +189,8 @@
     .tab-btn {
       flex: 1;
       padding: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(15, 23, 42, 0.35);
-      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(15, 23, 42, 0.85);
       color: #94a3b8;
       font-size: 12px;
       font-weight: bold;
@@ -264,7 +240,7 @@
       user-select: none;
       cursor: pointer;
       position: relative;
-      background-size: cover;
+      background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
     }
@@ -288,8 +264,13 @@
       background-repeat: no-repeat;
     }
 
+    /* 3ro: BARCO HUNDIDO MUESTRA LA CALAVERA.PNG */
     .cell.sunk {
       background-color: rgba(220, 38, 38, 0.5);
+      background-image: url('assets/calavera.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
     }
 
     .cell.sonar { background-color: rgba(245, 158, 11, 0.6); }
@@ -297,14 +278,14 @@
     .cell.drag-over { background-color: rgba(147, 51, 234, 0.8) !important; }
     .cell.selected-move { border: 2px solid #f59e0b; }
 
-    /* MISIL ROTADO A 135° APUNTANDO A LA CASILLA + ESTELA DE HUMO */
+    /* MISIL NÍTIDO POR ENCIMA DE TODO (Z-INDEX SUPERIOR) */
     .missile-projectile {
       position: fixed;
-      width: 24px;
-      height: 60px;
-      background: url('assets/missile.png') no-repeat center center, url('assets/missile.jpg') no-repeat center center;
+      width: 28px;
+      height: 65px;
+      background: url('assets/missile.png') no-repeat center center;
       background-size: contain;
-      z-index: 1000;
+      z-index: 99999 !important;
       pointer-events: none;
       transform: rotate(135deg);
       transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -324,6 +305,62 @@
       filter: blur(3px);
     }
 
+    /* ANIMACIÓN EMERGENTE DE CAMBIO DE TURNO (TURNO.PNG / TURNORIVAL.PNG) */
+    .turn-popup-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.6);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .turn-popup-overlay.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .turn-popup-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+      display: inline-block;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    }
+
+    .turn-popup-container img {
+      max-width: 85vw;
+      max-height: 25vh;
+      display: block;
+    }
+
+    /* EFECTO DE DESTELLO BRILLO METÁLICO EN DIAGONAL */
+    .turn-popup-container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -150%;
+      width: 100%;
+      height: 200%;
+      background: linear-gradient(
+        60deg,
+        rgba(255, 255, 255, 0) 20%,
+        rgba(255, 255, 255, 0.8) 50%,
+        rgba(255, 255, 255, 0) 80%
+      );
+      transform: rotate(25deg);
+      animation: shineMetal 1.5s infinite;
+    }
+
+    @keyframes shineMetal {
+      0% { left: -150%; }
+      100% { left: 150%; }
+    }
+
     .winner-modal {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -332,7 +369,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 9999;
+      z-index: 9999999;
       padding: 20px;
     }
 
@@ -387,11 +424,6 @@
       </div>
     </div>
 
-    <!-- Indicador de Turno -->
-    <div id="turnBanner" class="turn-banner" style="display: none;">
-      🎲 Turno actual: <span id="activePlayerName">Cargando...</span>
-    </div>
-
     <!-- Panel de Habilidades -->
     <div class="skills-panel" id="skillsPanel" style="display: none;">
       <div class="energy-badge">⚡ Energía: <span id="energyValue">3</span>/10</div>
@@ -420,6 +452,13 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- POPUP EMERGENTE TEMPORAL DE TURNO (TURNO.PNG / TURNORIVAL.PNG) -->
+  <div id="turnPopup" class="turn-popup-overlay">
+    <div class="turn-popup-container">
+      <img id="turnPopupImg" src="assets/turno.png" alt="Turno">
+    </div>
   </div>
 
   <!-- MODAL DE FINAL DE PARTIDA -->
@@ -650,30 +689,38 @@
 
     socket.on('game:start', ({ activePlayer }) => {
       document.getElementById('placementPanel').style.display = 'none';
-      document.getElementById('turnBanner').style.display = 'block';
       document.getElementById('skillsPanel').style.display = 'flex';
       document.getElementById('tabBar').style.display = 'flex';
 
       actualizarTurno(activePlayer);
     });
 
+    // MOSTRAR CARTEL TURNO.PNG O TURNORIVAL.PNG DURANTE 2.5 SEGUNDOS
+    function mostrarAnimacionTurno(esMiTurno) {
+      const popup = document.getElementById('turnPopup');
+      const img = document.getElementById('turnPopupImg');
+      
+      img.src = esMiTurno ? 'assets/turno.png' : 'assets/turnorival.png';
+      popup.classList.add('show');
+
+      setTimeout(() => {
+        popup.classList.remove('show');
+      }, 2500);
+    }
+
     function actualizarTurno(activePlayer) {
       activePlayerObj = activePlayer;
       myTurn = (activePlayer.id === socket.id);
       
-      const turnBanner = document.getElementById('turnBanner');
-      const turnEl = document.getElementById('activePlayerName');
       const btnRoulette = document.getElementById('btnRoulette');
 
-      turnEl.innerText = myTurn ? '¡TU TURNO! 🎯' : activePlayer.name;
+      mostrarAnimacionTurno(myTurn);
 
       if (myTurn) {
-        turnBanner.classList.add('my-turn-active');
         btnRoulette.classList.add('pulse-roulette');
         btnRoulette.disabled = rouletteSpun;
         log(`✨ <b>¡ES TU TURNO!</b> Girá la ruleta.`);
       } else {
-        turnBanner.classList.remove('my-turn-active');
         btnRoulette.classList.remove('pulse-roulette');
         btnRoulette.disabled = true;
         log(`⏳ Turno de <b>${activePlayer.name}</b>.`);
