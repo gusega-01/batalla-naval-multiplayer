@@ -10,7 +10,6 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// Función para encontrar la carpeta client en desarrollo o producción (Render)
 function resolverClientPath(): string {
   const posiblesRutas = [
     path.join(__dirname, '../../client'),
@@ -273,6 +272,7 @@ io.on('connection', (socket) => {
     });
   });
 
+  /* HABILIDADES DEFENSIVAS Y ATAQUES CORREGIDOS */
   socket.on('game:action', ({ roomCode, targetId, row, col, type, cost, moveData }) => {
     const room = rooms[roomCode];
     if (!room || room.gameOver) return;
@@ -282,18 +282,24 @@ io.on('connection', (socket) => {
 
     activePlayer.energy = Math.max(0, activePlayer.energy - (cost || 0));
 
+    if (!room.boardHistories[targetId]) {
+      room.boardHistories[targetId] = {};
+    }
+
     if (type === 'move_ship' && moveData) {
       const { shipId, newR, newC } = moveData;
       const shipObj = activePlayer.ships.find(s => s.id === shipId);
       if (shipObj) {
         shipObj.coords.forEach(c => { activePlayer.grid[c.r][c.c] = null; });
-        const isHoriz = shipObj.coords.length > 1 && shipObj.coords[0].r === shipObj.coords[1].r;
+        const isHoriz = shipObj.coords.length > 1 ? shipObj.coords[0].r === shipObj.coords[1].r : true;
         const newCoords: { r: number, c: number }[] = [];
         for (let i = 0; i < shipObj.length; i++) {
           const currR = isHoriz ? newR : newR + i;
           const currC = isHoriz ? newC + i : newC;
-          activePlayer.grid[currR][currC] = shipId;
-          newCoords.push({ r: currR, c: currC });
+          if (currR < 10 && currC < 10) {
+            activePlayer.grid[currR][currC] = shipId;
+            newCoords.push({ r: currR, c: currC });
+          }
         }
         shipObj.coords = newCoords;
       }
@@ -374,7 +380,6 @@ io.on('connection', (socket) => {
 
     io.to(roomCode).emit('game:turn_changed', { activePlayer: nextPlayer });
 
-    // DEMORA DE 2 SEGUNDOS (2000 MS) PARA DARLE TIEMPO AL MISIL VISUAL
     if (nextPlayer.isBot || nextPlayer.disconnectedTimeout) {
       setTimeout(() => {
         const objetivos = room.players.filter(p => p.id !== nextPlayer.id && !p.isEliminated);
@@ -417,7 +422,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Middleware comodín seguro
 app.use((req: Request, res: Response) => {
   const file = path.join(clientPath, 'index.html');
   if (fs.existsSync(file)) {
