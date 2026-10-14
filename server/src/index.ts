@@ -10,11 +10,24 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// Determinación segura de la carpeta client
-const clientPath = fs.existsSync(path.join(__dirname, '../../client'))
-  ? path.join(__dirname, '../../client')
-  : path.join(process.cwd(), 'client');
+// Función para encontrar la carpeta client en desarrollo o producción (Render)
+function resolverClientPath(): string {
+  const posiblesRutas = [
+    path.join(__dirname, '../../client'),
+    path.join(__dirname, '../../../client'),
+    path.join(process.cwd(), 'client'),
+    path.join(process.cwd(), '../client')
+  ];
 
+  for (const ruta of posiblesRutas) {
+    if (fs.existsSync(path.join(ruta, 'index.html'))) {
+      return ruta;
+    }
+  }
+  return path.join(process.cwd(), 'client');
+}
+
+const clientPath = resolverClientPath();
 app.use(express.static(clientPath));
 
 interface ShipInfo {
@@ -403,11 +416,11 @@ io.on('connection', (socket) => {
   });
 });
 
-// Middleware genérico para servir el index.html en cualquier subruta sin usar expresiones regulares en la ruta
+// Middleware comodín seguro
 app.use((req: Request, res: Response) => {
-  const indexPath = path.join(clientPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
+  const file = path.join(clientPath, 'index.html');
+  if (fs.existsSync(file)) {
+    res.sendFile(file);
   } else {
     res.status(404).send('Archivo index.html no encontrado');
   }
