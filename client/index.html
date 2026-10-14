@@ -7,7 +7,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
-      background: #0b0f19 url('assets/war-bg.jpg') no-repeat center top attachment fixed;
+      background: url('assets/war-bg.jpg') no-repeat center top fixed;
       background-size: cover;
       color: #ffffff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -20,24 +20,26 @@
       box-sizing: border-box;
     }
 
+    /* TRANSPARENCIA EN LA BOTONERA Y MENÚS */
     .invite-card {
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(15, 23, 42, 0.65) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.15);
       padding: 12px;
       border-radius: 12px;
       text-align: center;
       margin-bottom: 10px;
       width: 100%;
       max-width: 480px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     }
 
     .invite-card input {
       width: 80%;
       padding: 8px;
-      background: #090d16;
-      border: 1px solid #334155;
+      background: rgba(9, 13, 22, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       color: #fff;
       border-radius: 6px;
       text-align: center;
@@ -69,7 +71,7 @@
     }
 
     .draggable-ship {
-      background-color: #1e293b;
+      background-color: rgba(30, 41, 59, 0.8);
       color: white;
       border: 2px dashed #f1c40f;
       padding: 6px 10px;
@@ -96,8 +98,9 @@
     }
 
     .turn-banner {
-      background: rgba(30, 27, 75, 0.9);
-      backdrop-filter: blur(6px);
+      background: rgba(30, 27, 75, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border: 2px solid #6366f1;
       padding: 8px;
       border-radius: 8px;
@@ -115,9 +118,10 @@
     }
 
     .skills-panel {
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 12px;
       padding: 8px;
       margin-bottom: 8px;
@@ -140,9 +144,9 @@
     }
 
     .skill-btn {
-      background-color: #1e293b;
+      background-color: rgba(30, 41, 59, 0.8);
       color: white;
-      border: 1px solid #334155;
+      border: 1px solid rgba(255, 255, 255, 0.2);
       padding: 6px 10px;
       border-radius: 6px;
       cursor: pointer;
@@ -150,7 +154,7 @@
       font-size: 12px;
     }
 
-    .skill-btn.defensive { background-color: #0f766e; border-color: #14b8a6; }
+    .skill-btn.defensive { background-color: rgba(15, 118, 110, 0.8); border-color: #14b8a6; }
     .skill-btn.active { border-color: #f1c40f; background-color: #ea580c; }
 
     .roulette-btn {
@@ -169,10 +173,10 @@
       background-color: #a855f7;
     }
 
-    .roulette-btn:disabled { background-color: #475569; cursor: not-allowed; animation: none; }
+    .roulette-btn:disabled { background-color: rgba(71, 85, 105, 0.8); cursor: not-allowed; animation: none; }
 
     .target-badge {
-      background-color: #1e293b;
+      background-color: rgba(30, 41, 59, 0.8);
       color: #f1c40f;
       padding: 5px 10px;
       border-radius: 6px;
@@ -182,8 +186,9 @@
     }
 
     #consoleLog {
-      background-color: rgba(15, 23, 42, 0.9);
-      border: 1px solid #334155;
+      background-color: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 8px;
       padding: 8px;
       height: 60px;
@@ -208,8 +213,9 @@
     .tab-btn {
       flex: 1;
       padding: 6px;
-      border: 1px solid #334155;
-      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(8px);
       color: #94a3b8;
       font-size: 12px;
       font-weight: bold;
@@ -221,17 +227,17 @@
     .tab-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
     .tab-btn.target-locked { animation: pulseTab 1s infinite ease-in-out; }
 
-    /* TABLERO TÁCTICO CON MARCO Y COORDENADAS */
+    /* MARCO DEL TABLERO Y GRILLA PERFECTA */
     .tactical-board-wrapper {
-      background: #3e2212 url('assets/board-frame.png') no-repeat center center;
-      background-size: 100% 100%;
-      border-radius: 8px;
-      padding: 24px;
+      position: relative;
       width: 100%;
-      max-width: 460px;
+      max-width: 440px;
+      aspect-ratio: 1;
       margin: 0 auto;
-      box-sizing: border-box;
-      box-shadow: 0 12px 28px rgba(0,0,0,0.8);
+      background: url('assets/board-frame.png') no-repeat center center;
+      background-size: 100% 100%;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.8);
+      border-radius: 8px;
     }
 
     .board-container {
@@ -241,18 +247,21 @@
     }
 
     .grid {
+      position: absolute;
+      /* Ajuste exacto para calzar dentro de las líneas de board-frame.png */
+      top: 9.2%;
+      left: 9.2%;
+      width: 81.6%;
+      height: 81.6%;
       display: grid;
       grid-template-columns: repeat(10, 1fr);
-      gap: 2px;
-      background: transparent;
-      aspect-ratio: 1;
-      width: 100%;
+      grid-template-rows: repeat(10, 1fr);
+      gap: 0;
     }
 
     .cell {
-      background-color: rgba(3, 105, 161, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 2px;
+      background-color: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -264,35 +273,36 @@
       background-repeat: no-repeat;
     }
 
+    /* BARCO PINTADO CON COLOR SUAVE PARA NO DUPLICAR MINIATURAS */
     .cell.ship {
-      background-color: rgba(37, 99, 235, 0.75);
-      border-color: #3b82f6;
+      background-color: rgba(59, 130, 246, 0.45);
+      border: 1px solid #3b82f6;
     }
 
-    /* BORDER DE IMPACTOS CON TUS IMÁGENES */
     .cell.hit {
-      background-image: url('assets/explosion.png'), url('assets/explosion.jpg');
-      background-size: cover;
+      background-image: url('assets/explosion.png');
+      background-size: contain;
       background-position: center;
+      background-repeat: no-repeat;
     }
 
     .cell.water {
-      background-image: url('assets/water-splash.png'), url('assets/water-splash.jpg');
-      background-size: cover;
+      background-image: url('assets/water-splash.png');
+      background-size: contain;
       background-position: center;
+      background-repeat: no-repeat;
     }
 
     .cell.sunk {
-      background-color: rgba(220, 38, 38, 0.6);
-      border-color: #ef4444;
+      background-color: rgba(220, 38, 38, 0.5);
     }
 
-    .cell.sonar { background-color: rgba(245, 158, 11, 0.7); }
+    .cell.sonar { background-color: rgba(245, 158, 11, 0.6); }
     .cell.shielded { border: 2px solid #10b981; }
     .cell.drag-over { background-color: rgba(147, 51, 234, 0.8) !important; }
     .cell.selected-move { border: 2px solid #f59e0b; }
 
-    /* ANIMACIÓN DEL MISIL CAYENDO DEL CIELO */
+    /* MISIL CAYENDO */
     .missile-projectile {
       position: fixed;
       width: 8px;
@@ -306,7 +316,6 @@
       transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
 
-    /* MODAL DE FINAL DE PARTIDA CON TUS IMÁGENES */
     .winner-modal {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -324,7 +333,6 @@
       max-height: 50vh;
       object-fit: contain;
       margin-bottom: 20px;
-      filter: drop-shadow(0 0 20px rgba(245, 158, 11, 0.5));
     }
   </style>
 </head>
@@ -334,7 +342,7 @@
   <div id="setupMenu" class="invite-card" style="margin-top: 40px;">
     <h3 style="margin:2px 0; color: #f1c40f;">Tu Apodo de Capitán</h3>
     <input type="text" id="playerNameInput" placeholder="Ej: Gustavo" maxlength="12">
-    <hr style="border-color:#334155; margin:12px 0;">
+    <hr style="border-color:rgba(255,255,255,0.1); margin:12px 0;">
     <button class="btn-primary" onclick="crearSala()">✨ Crear Nueva Sala</button>
     <br><br>
     <input type="text" id="roomCodeInput" placeholder="Código de Sala">
@@ -348,7 +356,7 @@
     <button class="btn-primary" style="padding:6px;" onclick="copiarLink()">📋 Copiar Link</button>
     <br><br>
     <img id="qrCodeImg" src="" alt="QR" style="width: 120px; height: 120px; border-radius: 8px;">
-    <hr style="border-color:#334155; margin:10px 0;">
+    <hr style="border-color:rgba(255,255,255,0.1); margin:10px 0;">
     <div id="playerCountText" style="font-weight:bold; font-size:13px; margin-bottom:6px;">Jugadores en sala: 1/4</div>
     <button class="btn-primary" style="background:#8b5cf6;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
   </div>
@@ -395,7 +403,7 @@
 
   <div class="tab-bar" id="tabBar" style="display: none;"></div>
 
-  <!-- TABLERO TÁCTICO CON MARCO INTEGRADO -->
+  <!-- TABLERO TÁCTICO CON GRILLA PERFECTA -->
   <div class="board-container" id="boardContainer" style="display: none;">
     <div class="tactical-board-wrapper">
       <div id="grid" class="grid"></div>
@@ -416,14 +424,14 @@
     let selectedSetupShipId = null;
 
     const availableShips = [
-      { id: 'carrier', name: 'Portaaviones 🛳️', length: 4, img: 'assets/carrier.png' },
-      { id: 'battleship1', name: 'Acorazado A 🚢', length: 3, img: 'assets/battleship.png' },
-      { id: 'battleship2', name: 'Acorazado B 🚢', length: 3, img: 'assets/battleship.png' },
-      { id: 'cruiser1', name: 'Crucero 1 🚤', length: 2, img: 'assets/cruiser.png' },
-      { id: 'cruiser2', name: 'Crucero 2 🚤', length: 2, img: 'assets/cruiser.png' },
-      { id: 'patrol1', name: 'Lancha 1 🛥️', length: 1, img: 'assets/patrol.png' },
-      { id: 'patrol2', name: 'Lancha 2 🛥️', length: 1, img: 'assets/patrol.png' },
-      { id: 'patrol3', name: 'Lancha 3 🛥️', length: 1, img: 'assets/patrol.png' }
+      { id: 'carrier', name: 'Portaaviones 🛳️', length: 4 },
+      { id: 'battleship1', name: 'Acorazado A 🚢', length: 3 },
+      { id: 'battleship2', name: 'Acorazado B 🚢', length: 3 },
+      { id: 'cruiser1', name: 'Crucero 1 🚤', length: 2 },
+      { id: 'cruiser2', name: 'Crucero 2 🚤', length: 2 },
+      { id: 'patrol1', name: 'Lancha 1 🛥️', length: 1 },
+      { id: 'patrol2', name: 'Lancha 2 🛥️', length: 1 },
+      { id: 'patrol3', name: 'Lancha 3 🛥️', length: 1 }
     ];
 
     let isHorizontal = true;
@@ -611,10 +619,6 @@
 
           if (myGrid[r][c] !== null) {
             cell.classList.add('ship');
-            const shipObj = availableShips.find(s => s.id === myGrid[r][c]);
-            if (shipObj && shipObj.img) {
-              cell.style.backgroundImage = `url('${shipObj.img}')`;
-            }
           }
 
           cell.onclick = () => tryPlaceShipManual(r, c);
@@ -708,15 +712,14 @@
       renderActiveBoard();
     });
 
-    // FINAL DE PARTIDA CON TUS IMÁGENES WINNER Y LOSER
     socket.on('game:over', ({ winnerName, winnerId }) => {
       const modal = document.getElementById('winnerModal');
       const img = document.getElementById('endGameImg');
       
       if (winnerId === socket.id) {
-        img.src = 'assets/winner.jpg'; // Imagen WINNER
+        img.src = 'assets/winner.jpg';
       } else {
-        img.src = 'assets/loser.jpg';   // Imagen LOSER
+        img.src = 'assets/loser.jpg';
       }
       modal.style.display = 'flex';
     });
@@ -777,10 +780,6 @@
             const shipId = myGrid[r][c];
             if (showMyShips && shipId !== null) {
               cell.classList.add('ship');
-              const shipObj = availableShips.find(s => s.id === shipId);
-              if (shipObj && shipObj.img) {
-                cell.style.backgroundImage = `url('${shipObj.img}')`;
-              }
 
               if (selectedSkill === 'move_ship') {
                 cell.draggable = true;
@@ -836,7 +835,6 @@
       }
     }
 
-    // ANIMACIÓN DEL MISIL CAYENDO AL HACER CLIC
     function animarMisil(targetCell, callback) {
       const rect = targetCell.getBoundingClientRect();
       const targetX = rect.left + rect.width / 2;
@@ -845,7 +843,6 @@
       const missile = document.createElement('div');
       missile.className = 'missile-projectile';
       
-      // Nace arriba a la izquierda
       missile.style.left = (targetX - 250) + 'px';
       missile.style.top = '-100px';
 
