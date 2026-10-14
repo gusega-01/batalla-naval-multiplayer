@@ -10,16 +10,18 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-const rootDir = process.cwd().endsWith('server') 
-  ? path.join(process.cwd(), '../client') 
-  : path.join(process.cwd(), 'client');
+// Ruta absoluta garantizada para Render
+const clientPath = path.resolve(__dirname, '../../client');
+app.use(express.static(clientPath));
 
-app.use(express.static(rootDir));
-
-app.get('{*splat}', (req, res) => {
-  const indexPath = path.join(rootDir, 'index.html');
-  if (fs.existsSync(indexPath)) res.sendFile(indexPath);
-  else res.status(404).send('Archivo no encontrado');
+app.get('*', (req, res) => {
+  const indexPath = path.join(clientPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // Fallback alternativo por si la estructura difiere en build
+    res.sendFile(path.resolve(process.cwd(), 'client/index.html'));
+  }
 });
 
 interface ShipInfo {
@@ -53,7 +55,6 @@ interface RoomData {
 
 const rooms: Record<string, RoomData> = {};
 
-// Configuración de 8 barcos
 const shipConfigs = [
   { id: 'carrier', length: 4 },
   { id: 'battleship1', length: 3 },

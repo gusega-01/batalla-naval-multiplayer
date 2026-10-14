@@ -7,8 +7,8 @@
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
-      background: url('assets/war-bg.jpg') no-repeat center top fixed;
-      background-size: cover;
+      background: #090d16 url('assets/war-bg.jpg') no-repeat center top fixed;
+      background-size: contain;
       color: #ffffff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
@@ -20,25 +20,35 @@
       box-sizing: border-box;
     }
 
-    /* TRANSPARENCIA EN LA BOTONERA Y MENÚS */
-    .invite-card {
-      background: rgba(15, 23, 42, 0.65) !important;
-      backdrop-filter: blur(12px) !important;
-      -webkit-backdrop-filter: blur(12px) !important;
+    /* CONTENEDOR PRINCIPAL JUGABLE */
+    .game-layout-container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 80px; /* Margen para apreciar el título del fondo en PC */
+    }
+
+    /* TRANSPARENCIA CRISTALINA MÁXIMA EN BOTONERAS */
+    .invite-card, .skills-panel {
+      background: rgba(15, 23, 42, 0.25) !important;
+      backdrop-filter: blur(8px) !important;
+      -webkit-backdrop-filter: blur(8px) !important;
       border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 12px;
+      padding: 10px;
       border-radius: 12px;
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       width: 100%;
-      max-width: 480px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      box-sizing: border-box;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
 
     .invite-card input {
       width: 80%;
       padding: 8px;
-      background: rgba(9, 13, 22, 0.8);
+      background: rgba(9, 13, 22, 0.5);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: #fff;
       border-radius: 6px;
@@ -60,7 +70,6 @@
 
     .btn-primary { background-color: #007bff; color: white; }
     .btn-success { background-color: #28a745; color: white; }
-    .btn-primary:active, .btn-success:active { transform: scale(0.98); }
 
     .ship-selector {
       display: flex;
@@ -71,7 +80,7 @@
     }
 
     .draggable-ship {
-      background-color: rgba(30, 41, 59, 0.8);
+      background-color: rgba(30, 41, 59, 0.6);
       color: white;
       border: 2px dashed #f1c40f;
       padding: 6px 10px;
@@ -98,18 +107,18 @@
     }
 
     .turn-banner {
-      background: rgba(30, 27, 75, 0.7);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      background: rgba(30, 27, 75, 0.35);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       border: 2px solid #6366f1;
       padding: 8px;
       border-radius: 8px;
       text-align: center;
       font-weight: bold;
       width: 100%;
-      max-width: 480px;
       margin-bottom: 8px;
       color: #f1c40f;
+      box-sizing: border-box;
     }
 
     .turn-banner.my-turn-active {
@@ -118,20 +127,11 @@
     }
 
     .skills-panel {
-      background: rgba(15, 23, 42, 0.65);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 12px;
-      padding: 8px;
-      margin-bottom: 8px;
       display: flex;
       align-items: center;
       gap: 6px;
       flex-wrap: wrap;
       justify-content: center;
-      width: 100%;
-      max-width: 480px;
     }
 
     .energy-badge {
@@ -144,7 +144,7 @@
     }
 
     .skill-btn {
-      background-color: rgba(30, 41, 59, 0.8);
+      background-color: rgba(30, 41, 59, 0.5);
       color: white;
       border: 1px solid rgba(255, 255, 255, 0.2);
       padding: 6px 10px;
@@ -154,7 +154,7 @@
       font-size: 12px;
     }
 
-    .skill-btn.defensive { background-color: rgba(15, 118, 110, 0.8); border-color: #14b8a6; }
+    .skill-btn.defensive { background-color: rgba(15, 118, 110, 0.5); border-color: #14b8a6; }
     .skill-btn.active { border-color: #f1c40f; background-color: #ea580c; }
 
     .roulette-btn {
@@ -173,10 +173,10 @@
       background-color: #a855f7;
     }
 
-    .roulette-btn:disabled { background-color: rgba(71, 85, 105, 0.8); cursor: not-allowed; animation: none; }
+    .roulette-btn:disabled { background-color: rgba(71, 85, 105, 0.5); cursor: not-allowed; animation: none; }
 
     .target-badge {
-      background-color: rgba(30, 41, 59, 0.8);
+      background-color: rgba(30, 41, 59, 0.5);
       color: #f1c40f;
       padding: 5px 10px;
       border-radius: 6px;
@@ -186,7 +186,7 @@
     }
 
     #consoleLog {
-      background-color: rgba(15, 23, 42, 0.75);
+      background-color: rgba(15, 23, 42, 0.35);
       backdrop-filter: blur(8px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 8px;
@@ -198,15 +198,14 @@
       color: #4ade80;
       margin-bottom: 8px;
       width: 100%;
-      max-width: 480px;
       text-align: left;
+      box-sizing: border-box;
     }
 
     .tab-bar {
       display: flex;
       gap: 4px;
       width: 100%;
-      max-width: 480px;
       margin-bottom: 8px;
     }
 
@@ -214,7 +213,7 @@
       flex: 1;
       padding: 6px;
       border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(15, 23, 42, 0.7);
+      background: rgba(15, 23, 42, 0.35);
       backdrop-filter: blur(8px);
       color: #94a3b8;
       font-size: 12px;
@@ -227,11 +226,10 @@
     .tab-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
     .tab-btn.target-locked { animation: pulseTab 1s infinite ease-in-out; }
 
-    /* MARCO DEL TABLERO Y GRILLA PERFECTA */
+    /* TABLERO TÁCTICO CON MARCO DE MADERA */
     .tactical-board-wrapper {
       position: relative;
       width: 100%;
-      max-width: 440px;
       aspect-ratio: 1;
       margin: 0 auto;
       background: url('assets/board-frame.png') no-repeat center center;
@@ -242,13 +240,11 @@
 
     .board-container {
       width: 100%;
-      max-width: 480px;
       text-align: center;
     }
 
     .grid {
       position: absolute;
-      /* Ajuste exacto para calzar dentro de las líneas de board-frame.png */
       top: 9.2%;
       left: 9.2%;
       width: 81.6%;
@@ -273,21 +269,20 @@
       background-repeat: no-repeat;
     }
 
-    /* BARCO PINTADO CON COLOR SUAVE PARA NO DUPLICAR MINIATURAS */
     .cell.ship {
-      background-color: rgba(59, 130, 246, 0.45);
-      border: 1px solid #3b82f6;
+      background-color: rgba(2, 132, 199, 0.55);
+      border: 1px solid #38bdf8;
     }
 
     .cell.hit {
-      background-image: url('assets/explosion.png');
+      background-image: url('assets/explosion.png'), url('assets/explosion.jpg');
       background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
     }
 
     .cell.water {
-      background-image: url('assets/water-splash.png');
+      background-image: url('assets/water-splash.png'), url('assets/water-splash.jpg');
       background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
@@ -302,18 +297,31 @@
     .cell.drag-over { background-color: rgba(147, 51, 234, 0.8) !important; }
     .cell.selected-move { border: 2px solid #f59e0b; }
 
-    /* MISIL CAYENDO */
+    /* MISIL ROTADO A 135° APUNTANDO A LA CASILLA + ESTELA DE HUMO */
     .missile-projectile {
       position: fixed;
-      width: 8px;
-      height: 35px;
-      background: linear-gradient(to bottom, #f97316, #ef4444, #fef08a);
-      border-radius: 4px;
-      box-shadow: 0 0 12px #f97316, 0 -15px 20px rgba(255,255,255,0.8);
+      width: 24px;
+      height: 60px;
+      background: url('assets/missile.png') no-repeat center center, url('assets/missile.jpg') no-repeat center center;
+      background-size: contain;
       z-index: 1000;
       pointer-events: none;
-      transform: rotate(45deg);
+      transform: rotate(135deg);
       transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      filter: drop-shadow(0 -10px 8px rgba(249, 115, 22, 0.8));
+    }
+
+    .missile-projectile::after {
+      content: '';
+      position: absolute;
+      top: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 50px;
+      background: linear-gradient(to top, rgba(255, 255, 255, 0.9), rgba(249, 115, 22, 0.6), transparent);
+      border-radius: 50%;
+      filter: blur(3px);
     }
 
     .winner-modal {
@@ -338,76 +346,80 @@
 </head>
 <body>
 
-  <!-- Menú Inicial -->
-  <div id="setupMenu" class="invite-card" style="margin-top: 40px;">
-    <h3 style="margin:2px 0; color: #f1c40f;">Tu Apodo de Capitán</h3>
-    <input type="text" id="playerNameInput" placeholder="Ej: Gustavo" maxlength="12">
-    <hr style="border-color:rgba(255,255,255,0.1); margin:12px 0;">
-    <button class="btn-primary" onclick="crearSala()">✨ Crear Nueva Sala</button>
-    <br><br>
-    <input type="text" id="roomCodeInput" placeholder="Código de Sala">
-    <button class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
-  </div>
+  <div class="game-layout-container">
 
-  <!-- Invitación QR -->
-  <div id="inviteSection" class="invite-card" style="display: none; margin-top: 40px;">
-    <p style="margin:2px 0;"><b>¡Sala Creada!</b> Link de invitación:</p>
-    <input type="text" id="inviteLinkInput" readonly>
-    <button class="btn-primary" style="padding:6px;" onclick="copiarLink()">📋 Copiar Link</button>
-    <br><br>
-    <img id="qrCodeImg" src="" alt="QR" style="width: 120px; height: 120px; border-radius: 8px;">
-    <hr style="border-color:rgba(255,255,255,0.1); margin:10px 0;">
-    <div id="playerCountText" style="font-weight:bold; font-size:13px; margin-bottom:6px;">Jugadores en sala: 1/4</div>
-    <button class="btn-primary" style="background:#8b5cf6;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
-  </div>
-
-  <!-- Fase de Colocación -->
-  <div class="invite-card" id="placementPanel" style="display: none; margin-top: 20px;">
-    <h3 style="margin: 0 0 6px 0;">🛠️ Posicioná tus 8 Barcos</h3>
-    <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 6px;">
-      <button class="skill-btn" id="btnToggleRotate" onclick="toggleOrientation()">🔄 Horizontal</button>
-      <button class="skill-btn" style="background:#0284c7;" onclick="ubicarBarcosAleatorios()">🎲 Aleatorio</button>
-      <button class="skill-btn" style="background-color: #dc2626;" onclick="resetPlacement()">🔄 Limpiar</button>
+    <!-- Menú Inicial -->
+    <div id="setupMenu" class="invite-card">
+      <h3 style="margin:2px 0; color: #f1c40f;">Tu Apodo de Capitán</h3>
+      <input type="text" id="playerNameInput" placeholder="Ej: Gustavo" maxlength="12">
+      <hr style="border-color:rgba(255,255,255,0.1); margin:12px 0;">
+      <button class="btn-primary" onclick="crearSala()">✨ Crear Nueva Sala</button>
+      <br><br>
+      <input type="text" id="roomCodeInput" placeholder="Código de Sala">
+      <button class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
     </div>
 
-    <div class="ship-selector" id="shipSelector"></div>
-
-    <div style="margin-top: 10px;">
-      <button class="btn-success" id="btnConfirmFleet" onclick="confirmarFlota()" disabled>✅ Confirmar Flota e Iniciar</button>
+    <!-- Invitación QR -->
+    <div id="inviteSection" class="invite-card" style="display: none;">
+      <p style="margin:2px 0;"><b>¡Sala Creada!</b> Link de invitación:</p>
+      <input type="text" id="inviteLinkInput" readonly>
+      <button class="btn-primary" style="padding:6px;" onclick="copiarLink()">📋 Copiar Link</button>
+      <br><br>
+      <img id="qrCodeImg" src="" alt="QR" style="width: 120px; height: 120px; border-radius: 8px;">
+      <hr style="border-color:rgba(255,255,255,0.1); margin:10px 0;">
+      <div id="playerCountText" style="font-weight:bold; font-size:13px; margin-bottom:6px;">Jugadores en sala: 1/4</div>
+      <button class="btn-primary" style="background:#8b5cf6;" onclick="agregarBot()">🤖 Agregar Bot (Completar)</button>
     </div>
-  </div>
 
-  <!-- Indicador de Turno -->
-  <div id="turnBanner" class="turn-banner" style="display: none;">
-    🎲 Turno actual: <span id="activePlayerName">Cargando...</span>
-  </div>
+    <!-- Fase de Colocación -->
+    <div class="invite-card" id="placementPanel" style="display: none;">
+      <h3 style="margin: 0 0 6px 0;">🛠️ Posicioná tus 8 Barcos</h3>
+      <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 6px;">
+        <button class="skill-btn" id="btnToggleRotate" onclick="toggleOrientation()">🔄 Horizontal</button>
+        <button class="skill-btn" style="background:#0284c7;" onclick="ubicarBarcosAleatorios()">🎲 Aleatorio</button>
+        <button class="skill-btn" style="background-color: #dc2626;" onclick="resetPlacement()">🔄 Limpiar</button>
+      </div>
 
-  <!-- Panel de Habilidades -->
-  <div class="skills-panel" id="skillsPanel" style="display: none;">
-    <div class="energy-badge">⚡ Energía: <span id="energyValue">3</span>/10</div>
+      <div class="ship-selector" id="shipSelector"></div>
 
-    <button class="roulette-btn" id="btnRoulette" onclick="girarRuleta()">🎰 Girar Ruleta (0⚡)</button>
-    <span class="target-badge" id="targetInfo">🎯 Objetivo: Pendiente</span>
-
-    <button class="skill-btn active" id="btnShot" onclick="setSkill('basic_shot')">💥 Normal (0⚡)</button>
-    <button class="skill-btn" id="btnCross" onclick="setSkill('cross_shot')">➕ Cruz (4⚡)</button>
-    <button class="skill-btn" id="btnSonar" onclick="setSkill('sonar')">📡 Sonar (2⚡)</button>
-    <button class="skill-btn" id="btnRain" onclick="setSkill('rain')">🌧️ Lluvia (6⚡)</button>
-
-    <button class="skill-btn defensive" id="btnShield" onclick="setSkill('shield')">🛡️ Escudo (2⚡)</button>
-    <button class="skill-btn defensive" id="btnMove" onclick="setSkill('move_ship')">⚓ Mover (2⚡)</button>
-    <button class="skill-btn defensive" id="btnRepair" onclick="setSkill('repair')">🔧 Reparar (3⚡)</button>
-  </div>
-
-  <div id="consoleLog">Ingresá tu apodo para comenzar...</div>
-
-  <div class="tab-bar" id="tabBar" style="display: none;"></div>
-
-  <!-- TABLERO TÁCTICO CON GRILLA PERFECTA -->
-  <div class="board-container" id="boardContainer" style="display: none;">
-    <div class="tactical-board-wrapper">
-      <div id="grid" class="grid"></div>
+      <div style="margin-top: 10px;">
+        <button class="btn-success" id="btnConfirmFleet" onclick="confirmarFlota()" disabled>✅ Confirmar Flota e Iniciar</button>
+      </div>
     </div>
+
+    <!-- Indicador de Turno -->
+    <div id="turnBanner" class="turn-banner" style="display: none;">
+      🎲 Turno actual: <span id="activePlayerName">Cargando...</span>
+    </div>
+
+    <!-- Panel de Habilidades -->
+    <div class="skills-panel" id="skillsPanel" style="display: none;">
+      <div class="energy-badge">⚡ Energía: <span id="energyValue">3</span>/10</div>
+
+      <button class="roulette-btn" id="btnRoulette" onclick="girarRuleta()">🎰 Girar Ruleta (0⚡)</button>
+      <span class="target-badge" id="targetInfo">🎯 Objetivo: Pendiente</span>
+
+      <button class="skill-btn active" id="btnShot" onclick="setSkill('basic_shot')">💥 Normal (0⚡)</button>
+      <button class="skill-btn" id="btnCross" onclick="setSkill('cross_shot')">➕ Cruz (4⚡)</button>
+      <button class="skill-btn" id="btnSonar" onclick="setSkill('sonar')">📡 Sonar (2⚡)</button>
+      <button class="skill-btn" id="btnRain" onclick="setSkill('rain')">🌧️ Lluvia (6⚡)</button>
+
+      <button class="skill-btn defensive" id="btnShield" onclick="setSkill('shield')">🛡️ Escudo (2⚡)</button>
+      <button class="skill-btn defensive" id="btnMove" onclick="setSkill('move_ship')">⚓ Mover (2⚡)</button>
+      <button class="skill-btn defensive" id="btnRepair" onclick="setSkill('repair')">🔧 Reparar (3⚡)</button>
+    </div>
+
+    <div id="consoleLog">Ingresá tu apodo para comenzar...</div>
+
+    <div class="tab-bar" id="tabBar" style="display: none;"></div>
+
+    <!-- TABLERO TÁCTICO -->
+    <div class="board-container" id="boardContainer" style="display: none;">
+      <div class="tactical-board-wrapper">
+        <div id="grid" class="grid"></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- MODAL DE FINAL DE PARTIDA -->
@@ -424,14 +436,14 @@
     let selectedSetupShipId = null;
 
     const availableShips = [
-      { id: 'carrier', name: 'Portaaviones 🛳️', length: 4 },
-      { id: 'battleship1', name: 'Acorazado A 🚢', length: 3 },
-      { id: 'battleship2', name: 'Acorazado B 🚢', length: 3 },
-      { id: 'cruiser1', name: 'Crucero 1 🚤', length: 2 },
-      { id: 'cruiser2', name: 'Crucero 2 🚤', length: 2 },
-      { id: 'patrol1', name: 'Lancha 1 🛥️', length: 1 },
-      { id: 'patrol2', name: 'Lancha 2 🛥️', length: 1 },
-      { id: 'patrol3', name: 'Lancha 3 🛥️', length: 1 }
+      { id: 'carrier', name: 'Portaaviones 🛳️', length: 4, img: 'assets/carrier.png' },
+      { id: 'battleship1', name: 'Acorazado A 🚢', length: 3, img: 'assets/battleship.png' },
+      { id: 'battleship2', name: 'Acorazado B 🚢', length: 3, img: 'assets/battleship.png' },
+      { id: 'cruiser1', name: 'Crucero 1 🚤', length: 2, img: 'assets/cruiser.png' },
+      { id: 'cruiser2', name: 'Crucero 2 🚤', length: 2, img: 'assets/cruiser.png' },
+      { id: 'patrol1', name: 'Lancha 1 🛥️', length: 1, img: 'assets/patrol.png' },
+      { id: 'patrol2', name: 'Lancha 2 🛥️', length: 1, img: 'assets/patrol.png' },
+      { id: 'patrol3', name: 'Lancha 3 🛥️', length: 1, img: 'assets/patrol.png' }
     ];
 
     let isHorizontal = true;
@@ -843,20 +855,20 @@
       const missile = document.createElement('div');
       missile.className = 'missile-projectile';
       
-      missile.style.left = (targetX - 250) + 'px';
-      missile.style.top = '-100px';
+      missile.style.left = (targetX + 220) + 'px';
+      missile.style.top = '-120px';
 
       document.body.appendChild(missile);
 
       setTimeout(() => {
-        missile.style.left = targetX + 'px';
-        missile.style.top = targetY + 'px';
+        missile.style.left = (targetX - 12) + 'px';
+        missile.style.top = (targetY - 30) + 'px';
       }, 50);
 
       setTimeout(() => {
         missile.remove();
         if (callback) callback();
-      }, 550);
+      }, 520);
     }
 
     function estaBarcoDanado(shipId) {
