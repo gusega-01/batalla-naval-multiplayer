@@ -294,30 +294,28 @@
     .cell.sonar { background-color: rgba(245, 158, 11, 0.6); }
     .cell.shielded { border: 2px solid #10b981; }
 
-    /* MISIL TOTALMENTE SOBREPUESTO Y VISIBLE */
+    /* ESTILOS CLAUDE: MISIL Y EFECTO DE IMPACTO DIRECTO */
     .missile-projectile {
       position: fixed;
       width: 38px;
       height: 95px;
-      background: url('assets/missile.png') no-repeat center center;
-      background-size: contain;
-      z-index: 999999999 !important;
+      z-index: 2147483647;
       pointer-events: none;
+      will-change: transform, opacity;
       filter: drop-shadow(0 0 14px rgba(255, 120, 0, 0.95));
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    @keyframes flyAndDropMissile {
-      0% {
-        transform: translate(140px, -380px) rotate(135deg) scale(1.5);
-        opacity: 0;
-      }
-      20% {
-        opacity: 1;
-      }
-      100% {
-        transform: translate(0, 0) rotate(135deg) scale(1);
-        opacity: 1;
-      }
+    .impact-fx {
+      position: fixed;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff7ae 0%, #ff9d00 45%, rgba(255, 60, 0, 0) 70%);
+      z-index: 2147483647;
+      pointer-events: none;
     }
 
     .turn-popup-overlay {
@@ -483,6 +481,11 @@
 
     let shipToMove = null;
     let turnPopupTimer = null;
+
+    /* CONFIGURACIÓN CLAUDE ANIMACIÓN DE MISIL */
+    const MISSILE_SRC = 'assets/missile.png';
+    const MISSILE_NOSE_DEG = 0;
+    let disparoEnCurso = false;
 
     function log(msg) {
       const el = document.getElementById('consoleLog');
@@ -896,27 +899,67 @@
       renderShipsOverlay();
     }
 
-    /* ANIMACIÓN DEL MISIL CON CAÍDA DIRECTA */
+    /* FUNCIÓN ANIMARMISIL WEB ANIMATIONS API (APORTE CLAUDE) */
     function animarMisil(targetCell, callback) {
       document.getElementById('turnPopup').classList.remove('show');
 
+      const W = 38, H = 95;
       const rect = targetCell.getBoundingClientRect();
-      const targetX = rect.left + rect.width / 2 - 19;
-      const targetY = rect.top + rect.height / 2 - 47;
+      const endX = rect.left + rect.width / 2 - W / 2;
+      const endY = rect.top + rect.height / 2 - H / 2;
+
+      const startY = Math.max(-H, endY - 380);
+      const dy = startY - endY;
+      const dx = (endX + 140 > window.innerWidth - W) ? -140 : 140;
+
+      const travelDeg = Math.atan2(-dx, dy) * 180 / Math.PI;
+      const rot = travelDeg - MISSILE_NOSE_DEG;
 
       const missile = document.createElement('div');
       missile.className = 'missile-projectile';
+      missile.style.left = endX + 'px';
+      missile.style.top = endY + 'px';
 
-      missile.style.left = targetX + 'px';
-      missile.style.top = targetY + 'px';
-      missile.style.animation = 'flyAndDropMissile 1.0s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards';
-
+      const img = new Image();
+      img.alt = '';
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+      img.onerror = () => {
+        console.warn('No se pudo cargar', MISSILE_SRC, '-> revisa nombre/mayúsculas/ruta');
+        missile.innerHTML = '🚀';
+        missile.style.fontSize = '44px';
+      };
+      img.src = MISSILE_SRC;
+      missile.appendChild(img);
       document.body.appendChild(missile);
 
-      setTimeout(() => {
+      let terminado = false;
+      const terminar = () => {
+        if (terminado) return;
+        terminado = true;
         missile.remove();
+
+        const fx = document.createElement('div');
+        fx.className = 'impact-fx';
+        fx.style.left = (rect.left + rect.width / 2 - 28) + 'px';
+        fx.style.top = (rect.top + rect.height / 2 - 28) + 'px';
+        document.body.appendChild(fx);
+
+        fx.animate([
+          { transform: 'scale(0.2)', opacity: 1 },
+          { transform: 'scale(1.6)', opacity: 0 }
+        ], { duration: 350, easing: 'ease-out' }).onfinish = () => fx.remove();
+
         if (callback) callback();
-      }, 1000);
+      };
+
+      const anim = missile.animate([
+        { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(1.4)`, opacity: 0 },
+        { transform: `translate(${dx * 0.85}px, ${dy * 0.85}px) rotate(${rot}deg) scale(1.2)`, opacity: 1 },
+        { transform: `translate(0px, 0px) rotate(${rot}deg) scale(1)`, opacity: 1 }
+      ], { duration: 900, easing: 'cubic-bezier(0.4, 0, 0.9, 0.6)', fill: 'forwards' });
+
+      anim.onfinish = terminar;
+      setTimeout(terminar, 1500);
     }
 
     function estaBarcoDanado(shipId) {
@@ -928,7 +971,6 @@
       });
     }
 
-    /* LÓGICA CORREGIDA PARA LAS 3 HABILIDADES DEFENSIVAS */
     function ejecutarAccionPropia(r, c, shipId) {
       if (!myTurn) return alert('¡Esperá tu turno!');
       if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
@@ -994,7 +1036,9 @@
       }
     }
 
+    /* FUNCIÓN DISPARARRIVALCONMISIL CLAUDE */
     function dispararRivalConMisil(r, c, cellElem) {
+      if (disparoEnCurso) return;
       if (!myTurn) return alert('¡Esperá tu turno para disparar!');
       if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
 
@@ -1007,6 +1051,7 @@
 
       if (myEnergy < cost) return alert('⚡ Energía insuficiente');
 
+      disparoEnCurso = true;
       animarMisil(cellElem, () => {
         socket.emit('game:action', {
           roomCode: currentRoomCode,
@@ -1016,6 +1061,7 @@
           type: selectedSkill,
           cost
         });
+        disparoEnCurso = false;
         setSkill('basic_shot');
       });
     }
