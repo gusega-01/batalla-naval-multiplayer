@@ -10,21 +10,12 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+// Determinación segura de la carpeta client
 const clientPath = fs.existsSync(path.join(__dirname, '../../client'))
   ? path.join(__dirname, '../../client')
   : path.join(process.cwd(), 'client');
 
 app.use(express.static(clientPath));
-
-// Captura de rutas universal compatible con Express moderno
-app.get('(.*)', (req: Request, res: Response) => {
-  const indexPath = path.join(clientPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send('Archivo index.html no encontrado');
-  }
-});
 
 interface ShipInfo {
   id: string;
@@ -410,6 +401,16 @@ io.on('connection', (socket) => {
       }
     }
   });
+});
+
+// Middleware genérico para servir el index.html en cualquier subruta sin usar expresiones regulares en la ruta
+app.use((req: Request, res: Response) => {
+  const indexPath = path.join(clientPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Archivo index.html no encontrado');
+  }
 });
 
 const PORT = process.env.PORT || 10000;
