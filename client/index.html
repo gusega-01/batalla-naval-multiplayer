@@ -782,19 +782,6 @@
       renderActiveBoard();
     });
 
-    socket.on('game:over', ({ winnerName, winnerId }) => {
-      document.getElementById('turnPopup').classList.remove('show');
-      const modal = document.getElementById('winnerModal');
-      const img = document.getElementById('endGameImg');
-      
-      if (winnerId === socket.id) {
-        img.src = 'assets/winner.jpg';
-      } else {
-        img.src = 'assets/loser.jpg';
-      }
-      modal.style.display = 'flex';
-    });
-
     function setSkill(skill) {
       selectedSkill = skill;
       shipToMove = null;
