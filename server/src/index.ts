@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
@@ -10,17 +10,20 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// Ruta absoluta garantizada para Render
-const clientPath = path.resolve(__dirname, '../../client');
+// Determinación segura de la carpeta client
+const clientPath = fs.existsSync(path.join(__dirname, '../../client'))
+  ? path.join(__dirname, '../../client')
+  : path.join(process.cwd(), 'client');
+
 app.use(express.static(clientPath));
 
-app.get('*', (req, res) => {
+// Sintaxis compatible con TypeScript en Express
+app.get('/*', (req: Request, res: Response) => {
   const indexPath = path.join(clientPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    // Fallback alternativo por si la estructura difiere en build
-    res.sendFile(path.resolve(process.cwd(), 'client/index.html'));
+    res.status(404).send('Archivo index.html no encontrado');
   }
 });
 
