@@ -30,7 +30,7 @@
       margin-top: 80px;
     }
 
-    /* CONTENEDORES SIN BLUR BORROSO (NÍTIDOS Y TRANSPARENTES) */
+    /* CONTENEDORES SIN BLUR BORROSO */
     .invite-card, .skills-panel {
       background: rgba(15, 23, 42, 0.85) !important;
       border: 1px solid rgba(255, 255, 255, 0.2);
@@ -302,32 +302,45 @@
     .cell.drag-over { background-color: rgba(147, 51, 234, 0.8) !important; }
     .cell.selected-move { border: 2px solid #f59e0b; }
 
-    /* ANIMACIÓN DEL MISIL (1 SEGUNDO DE CAÍDA DE PUNTA) */
+    /* MISIL NÍTIDO CAÍDA DIRECTA DE PUNTA POR KEYFRAMES */
     .missile-projectile {
       position: fixed;
-      width: 32px;
-      height: 80px;
+      width: 30px;
+      height: 70px;
       background: url('assets/missile.png') no-repeat center center;
       background-size: contain;
       z-index: 9999999 !important;
       pointer-events: none;
       image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
-      transition: all 1.0s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* 1 Segundo de duración exacta */
     }
 
-    /* NOTIFICACIÓN ÚNICA DE TURNO */
+    @keyframes dropMissile {
+      0% {
+        transform: translate(60px, -250px) rotate(135deg);
+        opacity: 0;
+      }
+      15% {
+        opacity: 1;
+      }
+      100% {
+        transform: translate(0, 0) rotate(135deg);
+        opacity: 1;
+      }
+    }
+
+    /* POPUP DE TURNO 1.5s Y DESAPARECE */
     .turn-popup-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 999999;
+      z-index: 99999;
       pointer-events: none;
       opacity: 0;
       transform: scale(0.6);
-      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
     .turn-popup-overlay.show {
@@ -363,7 +376,7 @@
         rgba(255, 255, 255, 0) 80%
       );
       transform: rotate(25deg);
-      animation: shineMetal 1.5s infinite;
+      animation: shineMetal 1.2s infinite;
     }
 
     @keyframes shineMetal {
@@ -465,7 +478,7 @@
 
   </div>
 
-  <!-- NOTIFICACIÓN EMERGENTE UNIFICADA DE TURNO -->
+  <!-- NOTIFICACIÓN EMERGENTE FLOTANTE -->
   <div id="turnPopup" class="turn-popup-overlay">
     <div class="turn-popup-container">
       <img id="turnPopupImg" src="assets/turno.png" alt="Turno">
@@ -511,7 +524,7 @@
     let showMyShips = true;
 
     let shipToMove = null;
-    let rivalTurnTimer = null;
+    let turnPopupTimer = null;
 
     function log(msg) {
       const el = document.getElementById('consoleLog');
@@ -708,31 +721,19 @@
       actualizarTurno(activePlayer);
     });
 
-    /* GESTIÓN DE CARTELES: TU TURNO Y UN SOLO CARTEL DE TURNO RIVAL FIJO */
-    function ocultarCartel() {
-      const popup = document.getElementById('turnPopup');
-      popup.classList.remove('show');
-    }
-
-    function mostrarCartel(esMiTurno) {
-      if (rivalTurnTimer) {
-        clearTimeout(rivalTurnTimer);
-        rivalTurnTimer = null;
-      }
+    /* MOSTRAR CARTEL 1.5 SEGUNDOS Y OCULTARLO LIMPIANDO EL DOM */
+    function mostrarCartelTemporal(esMiTurno) {
+      if (turnPopupTimer) clearTimeout(turnPopupTimer);
 
       const popup = document.getElementById('turnPopup');
       const img = document.getElementById('turnPopupImg');
       
-      if (esMiTurno) {
-        img.src = 'assets/turno.png';
-        popup.classList.add('show');
-      } else {
-        // A LOS 2.5 SEGUNDOS DEL DISPARO MUESTRA UN SOLO CARTEL DE TURNO RIVAL Y QUEDA FIJO
-        rivalTurnTimer = setTimeout(() => {
-          img.src = 'assets/turnorival.png';
-          popup.classList.add('show');
-        }, 2500);
-      }
+      img.src = esMiTurno ? 'assets/turno.png' : 'assets/turnorival.png';
+      popup.classList.add('show');
+
+      turnPopupTimer = setTimeout(() => {
+        popup.classList.remove('show');
+      }, 1500); // DURA 1.5 SEGUNDOS Y DESAPARECE
     }
 
     function actualizarTurno(activePlayer) {
@@ -741,8 +742,9 @@
       
       const btnRoulette = document.getElementById('btnRoulette');
 
+      mostrarCartelTemporal(myTurn);
+
       if (myTurn) {
-        mostrarCartel(true);
         btnRoulette.classList.add('pulse-roulette');
         btnRoulette.disabled = rouletteSpun;
         log(`✨ <b>¡ES TU TURNO!</b> Girá la ruleta.`);
@@ -798,7 +800,7 @@
     });
 
     socket.on('game:over', ({ winnerName, winnerId }) => {
-      ocultarCartel();
+      document.getElementById('turnPopup').classList.remove('show');
       const modal = document.getElementById('winnerModal');
       const img = document.getElementById('endGameImg');
       
@@ -848,7 +850,6 @@
       });
     }
 
-    /* RENDERIZADO CORREGIDO Y ROTADO DE LOS BARCOS DE MI FLOTA */
     function renderShipsOverlay() {
       const shipsLayer = document.getElementById('shipsLayer');
       shipsLayer.innerHTML = '';
@@ -964,34 +965,21 @@
       renderShipsOverlay();
     }
 
-    /* ANIMACIÓN DEL MISIL (1 SEGUNDO EXACTO DE DURACIÓN) */
+    /* ANIMACIÓN DEL MISIL CON KEYFRAMES (1 SEGUNDO DE DURACIÓN) */
     function animarMisil(targetCell, callback) {
-      ocultarCartel(); // OCULTA EL CARTEL AL DISPARAR PARA PANTALLA LIMPIA
-
       const rect = targetCell.getBoundingClientRect();
-      const targetX = rect.left + rect.width / 2 - 16;
-      const targetY = rect.top + rect.height / 2 - 40;
+      const targetX = rect.left + rect.width / 2 - 15;
+      const targetY = rect.top + rect.height / 2 - 35;
 
       const missile = document.createElement('div');
       missile.className = 'missile-projectile';
 
-      const startX = targetX + 220;
-      const startY = targetY - 300;
-
-      missile.style.left = startX + 'px';
-      missile.style.top = startY + 'px';
-      missile.style.transform = 'rotate(135deg)';
+      missile.style.left = targetX + 'px';
+      missile.style.top = targetY + 'px';
+      missile.style.animation = 'dropMissile 1.0s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards';
 
       document.body.appendChild(missile);
 
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          missile.style.left = targetX + 'px';
-          missile.style.top = targetY + 'px';
-        }, 20);
-      });
-
-      // 1000 MS (1 SEGUNDO DE VUELO)
       setTimeout(() => {
         missile.remove();
         if (callback) callback();
@@ -1028,7 +1016,6 @@
 
       shipToMove = null;
       setSkill('basic_shot');
-      mostrarCartel(false); // PROGRAMA UN SOLO CARTEL DE TURNO RIVAL
     }
 
     function ejecutarAccionPropia(r, c, shipId) {
@@ -1075,7 +1062,6 @@
       });
 
       setSkill('basic_shot');
-      mostrarCartel(false); // PROGRAMA UN SOLO CARTEL DE TURNO RIVAL
     }
 
     function dispararRivalConMisil(r, c, cellElem) {
@@ -1101,7 +1087,6 @@
           cost
         });
         setSkill('basic_shot');
-        mostrarCartel(false); // PROGRAMA UN SOLO CARTEL DE TURNO RIVAL
       });
     }
 
