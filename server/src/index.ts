@@ -272,7 +272,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  /* HABILIDADES DEFENSIVAS Y ATAQUES CORREGIDOS */
   socket.on('game:action', ({ roomCode, targetId, row, col, type, cost, moveData }) => {
     const room = rooms[roomCode];
     if (!room || room.gameOver) return;
@@ -316,8 +315,32 @@ io.on('connection', (socket) => {
         else if (type === 'cross_shot') {
           coordsAfectadas.push({ r: row, c: col }, { r: row - 1, c: col }, { r: row + 1, c: col }, { r: row, c: col - 1 }, { r: row, c: col + 1 });
         } else if (type === 'rain') {
-          for (let i = 0; i < 6; i++) {
-            coordsAfectadas.push({ r: Math.floor(Math.random() * 10), c: Math.floor(Math.random() * 10) });
+          /* LLUVIA DE 8 MISILES INTELIGENTE */
+          const unvisited: { r: number, c: number }[] = [];
+          for (let rIdx = 0; rIdx < 10; rIdx++) {
+            for (let cIdx = 0; cIdx < 10; cIdx++) {
+              const k = `${rIdx}_${cIdx}`;
+              if (!room.boardHistories[targetId][k]) {
+                unvisited.push({ r: rIdx, c: cIdx });
+              }
+            }
+          }
+
+          // Mezclar casillas sin visitar
+          for (let i = unvisited.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [unvisited[i], unvisited[j]] = [unvisited[j], unvisited[i]];
+          }
+
+          const elegidas = unvisited.slice(0, 8);
+          coordsAfectadas.push(...elegidas);
+
+          // Si hay menos de 8 disponibles, rellenar con aleatorias
+          while (coordsAfectadas.length < 8) {
+            coordsAfectadas.push({
+              r: Math.floor(Math.random() * 10),
+              c: Math.floor(Math.random() * 10)
+            });
           }
         } else if (type === 'sonar') {
           for (let dr = 0; dr < 2; dr++) {

@@ -7,8 +7,8 @@
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
-      background: #090d16 url('assets/war-bg.jpg') no-repeat center top fixed;
-      background-size: contain;
+      background: #090d16 url('assets/war-bg.jpg') no-repeat center center fixed;
+      background-size: cover;
       color: #ffffff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
@@ -247,6 +247,16 @@
       background-repeat: no-repeat;
       transition: all 0.2s ease;
       filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7));
+      pointer-events: auto;
+    }
+
+    .rendered-ship-entity.draggable-ship-game {
+      cursor: grab;
+    }
+
+    .rendered-ship-entity.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
     }
 
     .cell {
@@ -262,6 +272,11 @@
       background-size: contain;
       background-position: center;
       background-repeat: no-repeat;
+    }
+
+    .cell.drag-over {
+      background-color: rgba(56, 189, 248, 0.4) !important;
+      border: 2px dashed #38bdf8 !important;
     }
 
     .cell.ship {
@@ -294,7 +309,6 @@
     .cell.sonar { background-color: rgba(245, 158, 11, 0.6); }
     .cell.shielded { border: 2px solid #10b981; }
 
-    /* ESTILOS CLAUDE: MISIL Y EFECTO DE IMPACTO DIRECTO */
     .missile-projectile {
       position: fixed;
       width: 38px;
@@ -482,7 +496,6 @@
     let shipToMove = null;
     let turnPopupTimer = null;
 
-    /* CONFIGURACIÓN CLAUDE ANIMACIÓN DE MISIL */
     const MISSILE_SRC = 'assets/missile.png';
     const MISSILE_NOSE_DEG = 0;
     let disparoEnCurso = false;
@@ -826,6 +839,24 @@
 
         const shipEl = document.createElement('div');
         shipEl.className = 'rendered-ship-entity';
+        if (selectedSkill === 'move_ship' && myTurn && rouletteSpun) {
+          shipEl.classList.add('draggable-ship-game');
+          shipEl.draggable = true;
+
+          shipEl.ondragstart = (e) => {
+            if (estaBarcoDanado(ship.id)) {
+              e.preventDefault();
+              return alert('⚠️ Este barco está dañado (💥). ¡Debés repararlo antes de moverlo!');
+            }
+            e.dataTransfer.setData('text/plain', ship.id);
+            shipEl.classList.add('dragging');
+          };
+
+          shipEl.ondragend = () => {
+            shipEl.classList.remove('dragging');
+          };
+        }
+
         shipEl.style.backgroundImage = `url('${ship.img}')`;
 
         const topPos = firstCoord.r * 10;
@@ -870,15 +901,30 @@
               cell.classList.add('ship');
             }
 
-            if (shipToMove && shipToMove.shipId === shipId) {
-              cell.classList.add('selected-move');
-            }
-
             const state = boardHistories[socket.id] ? boardHistories[socket.id][key] : null;
             if (state) {
               cell.classList.add(state);
               if (state === 'shielded') cell.classList.add('shielded');
             }
+
+            // SOPORTE DRAG & DROP EN CADA CELDA
+            cell.ondragover = (e) => {
+              e.preventDefault();
+              cell.classList.add('drag-over');
+            };
+
+            cell.ondragleave = () => {
+              cell.classList.remove('drag-over');
+            };
+
+            cell.ondrop = (e) => {
+              e.preventDefault();
+              cell.classList.remove('drag-over');
+              const draggedShipId = e.dataTransfer.getData('text/plain');
+              if (draggedShipId) {
+                ejecutarMoverBarcoDrop(draggedShipId, r, c);
+              }
+            };
 
             cell.onclick = () => ejecutarAccionPropia(r, c, shipId);
           } else {
@@ -899,7 +945,6 @@
       renderShipsOverlay();
     }
 
-    /* FUNCIÓN ANIMARMISIL WEB ANIMATIONS API (APORTE CLAUDE) */
     function animarMisil(targetCell, callback) {
       document.getElementById('turnPopup').classList.remove('show');
 
@@ -971,6 +1016,53 @@
       });
     }
 
+    function ejecutarMoverBarcoDrop(shipId, newR, newC) {
+      if (!myTurn) return alert('¡Esperá tu turno!');
+      if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
+      if (!isFreeChoice) return alert('Mover barco requiere Objetivo Libre en la Ruleta');
+      if (myEnergy < 2) return alert('⚡ Energía insuficiente (2⚡)');
+
+      const shipObj = placedShips.find(s => s.id === shipId);
+      if (!shipObj) return;
+
+      if (estaBarcoDanado(shipId)) {
+        return alert('⚠️ Este barco está dañado (💥). ¡Debés repararlo antes de moverlo!');
+      }
+
+      const isHoriz = shipObj.coords.length > 1 ? shipObj.coords[0].r === shipObj.coords[1].r : true;
+      const tempGrid = myGrid.map(row => [...row]);
+      shipObj.coords.forEach(c => { tempGrid[c.r][c.c] = null; });
+
+      const newCoords = [];
+      for (let i = 0; i < shipObj.length; i++) {
+        const currR = isHoriz ? newR : newR + i;
+        const currC = isHoriz ? newC + i : newC;
+
+        if (currR >= 10 || currC >= 10 || tempGrid[currR][currC] !== null) {
+          return alert('❌ El barco no entra en esa ubicación o choca con otro.');
+        }
+        newCoords.push({ r: currR, c: currC });
+      }
+
+      // Actualización local
+      shipObj.coords.forEach(c => { myGrid[c.r][c.c] = null; });
+      newCoords.forEach(c => { myGrid[c.r][c.c] = shipId; });
+      shipObj.coords = newCoords;
+
+      socket.emit('game:action', {
+        roomCode: currentRoomCode,
+        targetId: socket.id,
+        row: newR,
+        col: newC,
+        type: 'move_ship',
+        cost: 2,
+        moveData: { shipId, newR, newC }
+      });
+
+      setSkill('basic_shot');
+      renderActiveBoard();
+    }
+
     function ejecutarAccionPropia(r, c, shipId) {
       if (!myTurn) return alert('¡Esperá tu turno!');
       if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
@@ -1011,32 +1103,10 @@
         setSkill('basic_shot');
       } 
       else if (selectedSkill === 'move_ship') {
-        if (!isFreeChoice) return alert('Mover barco requiere Objetivo Libre en la Ruleta');
-        
-        if (shipId !== null && !shipToMove) {
-          if (estaBarcoDanado(shipId)) {
-            return alert('⚠️ Este barco está dañado (💥). ¡Debés repararlo antes de moverlo!');
-          }
-          shipToMove = { shipId, origR: r, origC: c };
-          log(`⚓ Barco seleccionado. Tocá la nueva casilla para reubicarlo.`);
-          renderActiveBoard();
-        } else if (shipToMove) {
-          socket.emit('game:action', {
-            roomCode: currentRoomCode,
-            targetId: socket.id,
-            row: r,
-            col: c,
-            type: 'move_ship',
-            cost,
-            moveData: { shipId: shipToMove.shipId, newR: r, newC: c }
-          });
-          shipToMove = null;
-          setSkill('basic_shot');
-        }
+        log(`💡 Arrastrá el barco directamente con el mouse a su nueva casilla.`);
       }
     }
 
-    /* FUNCIÓN DISPARARRIVALCONMISIL CLAUDE */
     function dispararRivalConMisil(r, c, cellElem) {
       if (disparoEnCurso) return;
       if (!myTurn) return alert('¡Esperá tu turno para disparar!');
