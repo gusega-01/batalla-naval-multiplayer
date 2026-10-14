@@ -7,8 +7,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body {
-      background: #090d16 url('assets/war-bg.jpg') no-repeat center center fixed;
-      background-size: cover;
+      background-color: #090d16;
       color: #ffffff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
@@ -20,17 +19,26 @@
       box-sizing: border-box;
     }
 
+    /* CONTENEDOR ENCUADRADO CON LA IMAGEN DE FONDO */
     .game-layout-container {
       width: 100%;
       max-width: 500px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-top: 80px;
+      background: url('assets/war-bg.jpg') no-repeat center top;
+      background-size: 100% auto;
+      padding-top: 110px; /* Deja ver el título 'BATALLA NAVAL' de la imagen */
+      padding-bottom: 20px;
+      padding-left: 10px;
+      padding-right: 10px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+      box-sizing: border-box;
     }
 
     .invite-card, .skills-panel {
-      background: rgba(15, 23, 42, 0.85) !important;
+      background: rgba(15, 23, 42, 0.88) !important;
       border: 1px solid rgba(255, 255, 255, 0.2);
       padding: 10px;
       border-radius: 12px;
@@ -39,6 +47,7 @@
       width: 100%;
       box-sizing: border-box;
       box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
     }
 
     .invite-card input {
@@ -162,7 +171,7 @@
     }
 
     #consoleLog {
-      background-color: rgba(15, 23, 42, 0.85);
+      background-color: rgba(15, 23, 42, 0.88);
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 8px;
       padding: 8px;
@@ -175,6 +184,7 @@
       width: 100%;
       text-align: left;
       box-sizing: border-box;
+      backdrop-filter: blur(4px);
     }
 
     .tab-bar {
@@ -188,7 +198,7 @@
       flex: 1;
       padding: 6px;
       border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.88);
       color: #94a3b8;
       font-size: 12px;
       font-weight: bold;
@@ -907,7 +917,6 @@
               if (state === 'shielded') cell.classList.add('shielded');
             }
 
-            // SOPORTE DRAG & DROP EN CADA CELDA
             cell.ondragover = (e) => {
               e.preventDefault();
               cell.classList.add('drag-over');
@@ -945,9 +954,8 @@
       renderShipsOverlay();
     }
 
-    function animarMisil(targetCell, callback) {
-      document.getElementById('turnPopup').classList.remove('show');
-
+    /* ANIMACIÓN DE MISIL ÚNICO */
+    function lanzarUnMisil(targetCell, onHitCallback) {
       const W = 38, H = 95;
       const rect = targetCell.getBoundingClientRect();
       const endX = rect.left + rect.width / 2 - W / 2;
@@ -969,7 +977,6 @@
       img.alt = '';
       img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
       img.onerror = () => {
-        console.warn('No se pudo cargar', MISSILE_SRC, '-> revisa nombre/mayúsculas/ruta');
         missile.innerHTML = '🚀';
         missile.style.fontSize = '44px';
       };
@@ -994,17 +1001,45 @@
           { transform: 'scale(1.6)', opacity: 0 }
         ], { duration: 350, easing: 'ease-out' }).onfinish = () => fx.remove();
 
-        if (callback) callback();
+        if (onHitCallback) onHitCallback();
       };
 
       const anim = missile.animate([
         { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(1.4)`, opacity: 0 },
         { transform: `translate(${dx * 0.85}px, ${dy * 0.85}px) rotate(${rot}deg) scale(1.2)`, opacity: 1 },
         { transform: `translate(0px, 0px) rotate(${rot}deg) scale(1)`, opacity: 1 }
-      ], { duration: 900, easing: 'cubic-bezier(0.4, 0, 0.9, 0.6)', fill: 'forwards' });
+      ], { duration: 800, easing: 'cubic-bezier(0.4, 0, 0.9, 0.6)', fill: 'forwards' });
 
       anim.onfinish = terminar;
-      setTimeout(terminar, 1500);
+      setTimeout(terminar, 1200);
+    }
+
+    /* ANIMACIÓN COMPLETA (SOPORTA 8 MISILES EN RÁFAGA PARA LLUVIA) */
+    function animarMisil(targetCell, callback) {
+      document.getElementById('turnPopup').classList.remove('show');
+
+      if (selectedSkill === 'rain') {
+        const gridCells = Array.from(document.querySelectorAll('#grid .cell'));
+        if (gridCells.length === 0) return callback();
+
+        // Elegir 8 celdas aleatorias del tablero
+        const shuffled = [...gridCells].sort(() => 0.5 - Math.random());
+        const target8 = shuffled.slice(0, 8);
+
+        let completados = 0;
+        target8.forEach((cell, index) => {
+          setTimeout(() => {
+            lanzarUnMisil(cell, () => {
+              completados++;
+              if (completados === target8.length) {
+                if (callback) callback();
+              }
+            });
+          }, index * 120); // Lanzamiento escalonado cada 120ms
+        });
+      } else {
+        lanzarUnMisil(targetCell, callback);
+      }
     }
 
     function estaBarcoDanado(shipId) {
@@ -1044,7 +1079,6 @@
         newCoords.push({ r: currR, c: currC });
       }
 
-      // Actualización local
       shipObj.coords.forEach(c => { myGrid[c.r][c.c] = null; });
       newCoords.forEach(c => { myGrid[c.r][c.c] = shipId; });
       shipObj.coords = newCoords;
