@@ -202,7 +202,7 @@
     .tab-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
     .tab-btn.target-locked { animation: pulseTab 1s infinite ease-in-out; }
 
-    /* SISTEMA DE CAPAS PARA EL TABLERO TÁCTICO */
+    /* SISTEMA DE CAPAS DEL TABLERO */
     .tactical-board-wrapper {
       position: relative;
       width: 100%;
@@ -220,7 +220,7 @@
       text-align: center;
     }
 
-    /* CAPA 1: GRILLA DEL TABLERO DE JUEGO */
+    /* CAPA 1: GRILLA DEL TABLERO */
     .grid {
       position: absolute;
       top: 9.2%;
@@ -234,7 +234,7 @@
       z-index: 10;
     }
 
-    /* CAPA 2: CONTENEDOR SUPERPUESTO PARA RENDERIZAR LOS BARCOS COMPLETOS (MI FLOTA) */
+    /* CAPA 2: CONTENEDOR SUPERPUESTO DE BARCOS */
     .ships-layer {
       position: absolute;
       top: 9.2%;
@@ -274,7 +274,7 @@
       border: 1px solid #38bdf8;
     }
 
-    /* CAPA 3: EFECTOS Y MARCAS DE DISPAROS OVERLAY */
+    /* CAPA 3: IMPACTOS Y EFECTOS */
     .cell.hit {
       background-image: url('assets/explosion.png'), url('assets/explosion.jpg');
       background-size: contain;
@@ -302,21 +302,21 @@
     .cell.drag-over { background-color: rgba(147, 51, 234, 0.8) !important; }
     .cell.selected-move { border: 2px solid #f59e0b; }
 
-    /* MISIL NÍTIDO - CAYENDO REALISTA DE PUNTA (45° A 90°) */
+    /* ANIMACIÓN DEL MISIL VISIBLE Y NÍTIDO */
     .missile-projectile {
       position: fixed;
-      width: 28px;
-      height: 70px;
+      width: 32px;
+      height: 80px;
       background: url('assets/missile.png') no-repeat center center;
       background-size: contain;
-      z-index: 999999 !important;
+      z-index: 9999999 !important;
       pointer-events: none;
       image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
-      transition: all 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
 
-    /* POPUP DE NOTIFICACIÓN TEMPORAL DE TURNO */
+    /* NOTIFICACIÓN DE TURNO */
     .turn-popup-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -455,7 +455,7 @@
 
     <div class="tab-bar" id="tabBar" style="display: none;"></div>
 
-    <!-- TABLERO TÁCTICO CON CAPAS DE RENDERIZADO -->
+    <!-- TABLERO TÁCTICO CON CAPAS -->
     <div class="board-container" id="boardContainer" style="display: none;">
       <div class="tactical-board-wrapper">
         <div id="shipsLayer" class="ships-layer"></div>
@@ -673,7 +673,6 @@
     function renderSetupBoard() {
       const grid = document.getElementById('grid');
       grid.innerHTML = '';
-      document.getElementById('shipsLayer').innerHTML = '';
 
       for (let r = 0; r < 10; r++) {
         for (let c = 0; c < 10; c++) {
@@ -833,7 +832,7 @@
       });
     }
 
-    /* RENDERIZADO DE LA CAPA 2 (OVERLAY DE BARCOS COMPLETOS SOLO EN MI FLOTA) */
+    /* RENDERIZADO CORREGIDO Y ROTADO DE LOS BARCOS DE MI FLOTA */
     function renderShipsOverlay() {
       const shipsLayer = document.getElementById('shipsLayer');
       shipsLayer.innerHTML = '';
@@ -844,22 +843,31 @@
         if (!ship.coords || ship.coords.length === 0) return;
 
         const firstCoord = ship.coords[0];
-        const isHoriz = ship.isHorizontal !== undefined ? ship.isHorizontal : (ship.coords.length === 1 || ship.coords[0].r === ship.coords[1]?.r);
+        const isHoriz = ship.isHorizontal !== undefined 
+          ? ship.isHorizontal 
+          : (ship.coords.length === 1 || ship.coords[0].r === ship.coords[1]?.r);
 
         const shipEl = document.createElement('div');
         shipEl.className = 'rendered-ship-entity';
         shipEl.style.backgroundImage = `url('${ship.img}')`;
 
-        // Posicionamiento dinámico preciso en la grilla (10% por celda)
-        shipEl.style.left = (firstCoord.c * 10) + '%';
-        shipEl.style.top = (firstCoord.r * 10) + '%';
+        const topPos = firstCoord.r * 10;
+        const leftPos = firstCoord.c * 10;
 
         if (isHoriz) {
+          shipEl.style.left = leftPos + '%';
+          shipEl.style.top = topPos + '%';
           shipEl.style.width = (ship.length * 10) + '%';
           shipEl.style.height = '10%';
+          shipEl.style.transform = 'none';
         } else {
-          shipEl.style.width = '10%';
-          shipEl.style.height = (ship.length * 10) + '%';
+          // ROTACIÓN PERFECTA DE 90 GRADOS PARA BARCOS VERTICALES
+          shipEl.style.left = leftPos + '%';
+          shipEl.style.top = topPos + '%';
+          shipEl.style.width = (ship.length * 10) + '%';
+          shipEl.style.height = '10%';
+          shipEl.style.transformOrigin = '0% 0%';
+          shipEl.style.transform = 'rotate(90deg) translateY(-100%)';
         }
 
         shipsLayer.appendChild(shipEl);
@@ -941,35 +949,37 @@
       renderShipsOverlay();
     }
 
-    /* ANIMACIÓN DEL MISIL CAYENDO DE PUNTA (RUTINAS DE FÍSICA CORREGIDAS) */
+    /* ANIMACIÓN DEL MISIL VISIBLE Y BIEN ALINEADO DE PUNTA */
     function animarMisil(targetCell, callback) {
       const rect = targetCell.getBoundingClientRect();
-      const targetX = rect.left + rect.width / 2;
-      const targetY = rect.top + rect.height / 2;
+      const targetX = rect.left + rect.width / 2 - 16;
+      const targetY = rect.top + rect.height / 2 - 40;
 
       const missile = document.createElement('div');
       missile.className = 'missile-projectile';
 
-      // Posición inicial: Fuera del viewport arriba a la derecha en ángulo
-      const startX = targetX + 180;
-      const startY = -120;
+      // Posición inicial: Esquina superior derecha fuera del área de disparo
+      const startX = targetX + 220;
+      const startY = targetY - 300;
 
       missile.style.left = startX + 'px';
       missile.style.top = startY + 'px';
-      missile.style.transform = 'rotate(150deg)'; // Apuntando de punta hacia la casilla
+      missile.style.transform = 'rotate(135deg)';
 
       document.body.appendChild(missile);
 
-      setTimeout(() => {
-        missile.style.left = (targetX - 14) + 'px';
-        missile.style.top = (targetY - 35) + 'px';
-        missile.style.transform = 'rotate(135deg)';
-      }, 50);
+      // Desplazamiento visible inmediato
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          missile.style.left = targetX + 'px';
+          missile.style.top = targetY + 'px';
+        }, 20);
+      });
 
       setTimeout(() => {
         missile.remove();
         if (callback) callback();
-      }, 480);
+      }, 520);
     }
 
     function estaBarcoDanado(shipId) {
