@@ -493,15 +493,34 @@
     </div>
 
     <!-- CAJA DE CHICANAS / TAUNT CHAT (VOZ ROBÓTICA) -->
-    <div id="tauntContainer" class="invite-card" style="display: none; padding: 6px 10px;">
-      <input 
-        type="text" 
-        id="tauntInput" 
-        maxlength="40" 
-        placeholder="Chicana corta (máx 40)..." 
-      />
-      <button id="btnSendTaunt" onclick="sendTaunt()">🗣️</button>
-    </div>
+    <!-- CAJA DE CHICANAS / TAUNT CHAT CON OPCIONES DE VOZ -->
+<div id="tauntContainer" class="invite-card" style="display: none; padding: 10px; flex-direction: column; gap: 8px;">
+  <div style="display: flex; gap: 6px; width: 100%;">
+    <input 
+      type="text" 
+      id="tauntInput" 
+      maxlength="40" 
+      placeholder="Chicana corta (máx 40)..." 
+      style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.9); color: #fff; font-size: 13px; outline: none;"
+    />
+    <button id="btnSendTaunt" onclick="sendTaunt()" style="padding: 8px 16px; background: #e11d48; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+      Enviar 🗣️
+    </button>
+  </div>
+
+  <!-- SELECTORES DE VOZ Y ACCENTO -->
+  <div style="display: flex; gap: 6px; justify-content: space-between; width: 100%; font-size: 12px;">
+    <select id="tauntGender" style="background: rgba(9,13,22,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px; flex: 1;">
+      <option value="male">👨 Voz Masculina</option>
+      <option value="female">👩 Voz Femenina</option>
+    </select>
+
+    <select id="tauntMode" style="background: rgba(9,13,22,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px; flex: 1;">
+      <option value="es">🇦🇷 Español Natural</option>
+      <option value="repo">🤖 Efecto Repo (Gringo)</option>
+    </select>
+  </div>
+</div>
 
     <div id="consoleLog">Ingresá tu apodo para comenzar...</div>
 
@@ -1338,6 +1357,97 @@ function sendTaunt() {
       img.style.display = 'block';
       img.src = srcImagen;
       modal.style.display = 'flex';
+    });
+    // ... aquí termina tu código javascript anterior ...
+
+
+    // ==========================================
+    // 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
+    // ==========================================
+
+    let availableVoices = [];
+    function loadVoices() {
+      if (!('speechSynthesis' in window)) return;
+      availableVoices = window.speechSynthesis.getVoices();
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+      loadVoices();
+    }
+
+    function speakTaunt(text, gender = 'male', mode = 'es') {
+      if (!('speechSynthesis' in window)) return;
+
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      const targetLang = (mode === 'repo') ? 'en-US' : 'es-AR';
+      utterance.lang = targetLang;
+      utterance.pitch = (gender === 'male') ? 0.7 : 1.3;
+      utterance.rate = 0.95;
+
+      const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
+      const matchedVoice = voices.find(v => {
+        const isLangMatch = v.lang.toLowerCase().includes(targetLang.split('-')[0]);
+        const nameLower = v.name.toLowerCase();
+        const isGenderMatch = (gender === 'female') 
+          ? (nameLower.includes('female') || nameLower.includes('zira') || nameLower.includes('sabina') || nameLower.includes('monica'))
+          : (nameLower.includes('male') || nameLower.includes('david') || nameLower.includes('pablo') || nameLower.includes('diego'));
+        return isLangMatch && isGenderMatch;
+      }) || voices.find(v => v.lang.toLowerCase().includes(targetLang.split('-')[0]));
+
+      if (matchedVoice) utterance.voice = matchedVoice;
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function sendTaunt() {
+      if (myTurn) {
+        log('⚠️ Solo podés chicanear durante el turno del rival.');
+        return;
+      }
+
+      if (activeTabId === 'my') {
+        alert('⚠️ Seleccioná en las pestañas al rival que le querés mandar la chicana.');
+        return;
+      }
+
+      const input = document.getElementById('tauntInput');
+      const text = input ? input.value.trim() : '';
+
+      if (text.length === 0) return;
+
+      const gender = document.getElementById('tauntGender')?.value || 'male';
+      const mode = document.getElementById('tauntMode')?.value || 'es';
+
+      socket.emit('taunt:send', { text, targetId: activeTabId, gender, mode });
+      input.value = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const tauntInput = document.getElementById('tauntInput');
+      if (tauntInput) {
+        tauntInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            sendTaunt();
+          }
+        });
+      }
+    });
+
+    socket.on('taunt:receive', ({ senderId, text, gender, mode }) => {
+      speakTaunt(text, gender, mode);
+
+      const playerTab = document.querySelector(`[data-player-id="${senderId}"]`);
+      if (playerTab) {
+        const originalText = playerTab.innerText;
+        playerTab.innerText = `🔊 ${originalText}`;
+        setTimeout(() => {
+          playerTab.innerText = originalText;
+        }, 3000);
+      }
     });
   </script>
 </body>
