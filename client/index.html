@@ -170,6 +170,52 @@
       border: 1px solid #f1c40f;
     }
 
+    /* CHICANA TAUNT CHAT CONTAINER */
+    #tauntContainer {
+      margin: 6px 0;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    #tauntInput {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+    }
+
+    #tauntInput:disabled {
+      background: rgba(9, 13, 22, 0.6);
+      color: #64748b;
+      cursor: not-allowed;
+    }
+
+    #btnSendTaunt {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: none;
+      background: #e11d48;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    #btnSendTaunt:disabled {
+      background: #4c0519;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
     #consoleLog {
       background-color: rgba(15, 23, 42, 0.88);
       border: 1px solid rgba(255, 255, 255, 0.2);
@@ -446,6 +492,17 @@
       <button class="skill-btn defensive" id="btnRepair" onclick="setSkill('repair')">🔧 Reparar (3⚡)</button>
     </div>
 
+    <!-- CAJA DE CHICANAS / TAUNT CHAT (VOZ ROBÓTICA) -->
+    <div id="tauntContainer" class="invite-card" style="display: none; padding: 6px 10px;">
+      <input 
+        type="text" 
+        id="tauntInput" 
+        maxlength="40" 
+        placeholder="Chicana corta (máx 40)..." 
+      />
+      <button id="btnSendTaunt" onclick="sendTaunt()">🗣️</button>
+    </div>
+
     <div id="consoleLog">Ingresá tu apodo para comenzar...</div>
 
     <div class="tab-bar" id="tabBar" style="display: none;"></div>
@@ -700,6 +757,7 @@
     socket.on('game:start', ({ activePlayer }) => {
       document.getElementById('placementPanel').style.display = 'none';
       document.getElementById('skillsPanel').style.display = 'flex';
+      document.getElementById('tauntContainer').style.display = 'flex';
       document.getElementById('tabBar').style.display = 'flex';
 
       actualizarTurno(activePlayer);
@@ -737,6 +795,7 @@
         log(`⏳ Turno de <b>${activePlayer.name}</b>.`);
       }
 
+      updateTauntInputState();
       renderTabs();
       renderActiveBoard();
     }
@@ -814,6 +873,7 @@
 
         const btn = document.createElement('button');
         btn.className = 'tab-btn' + (activeTabId === p.id ? ' active' : '') + (isLockedTarget ? ' target-locked' : '');
+        btn.dataset.playerId = p.id;
         btn.innerText = `${p.name} ${isLockedTarget ? '🎯' : ''}`;
         btn.onclick = () => { activeTabId = p.id; renderTabs(); renderActiveBoard(); };
         tabBar.appendChild(btn);
@@ -1009,7 +1069,6 @@
         const gridCells = Array.from(document.querySelectorAll('#grid .cell'));
         if (gridCells.length === 0) return callback();
 
-        // Elegir 8 celdas aleatorias del tablero
         const shuffled = [...gridCells].sort(() => 0.5 - Math.random());
         const target8 = shuffled.slice(0, 8);
 
@@ -1022,7 +1081,7 @@
                 if (callback) callback();
               }
             });
-          }, index * 120); // Lanzamiento escalonado cada 120ms
+          }, index * 120);
         });
       } else {
         lanzarUnMisil(targetCell, callback);
@@ -1163,6 +1222,105 @@
       navigator.clipboard.writeText(copyText.value);
       alert('¡Link de invitación copiado!');
     }
+
+    // ==========================================
+    // 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
+    // ==========================================
+
+    function speakTaunt(text) {
+      if (!('speechSynthesis' in window)) return;
+      
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-AR';
+      utterance.pitch = 0.8; // Tono robótico
+      utterance.rate = 1.0;
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function sendTaunt() {
+      if (myTurn) {
+        log('⚠️ Solo podés chicanear durante el turno del rival.');
+        return;
+      }
+
+      const input = document.getElementById('tauntInput');
+      const text = input ? input.value.trim() : '';
+
+      if (text.length === 0) return;
+
+      socket.emit('taunt:send', { text });
+      input.value = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const tauntInput = document.getElementById('tauntInput');
+      if (tauntInput) {
+        tauntInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') sendTaunt();
+        });
+      }
+    });
+
+    socket.on('taunt:receive', ({ senderId, text }) => {
+      speakTaunt(text);
+
+      const playerTab = document.querySelector(`[data-player-id="${senderId}"]`);
+      if (playerTab) {
+        const originalText = playerTab.innerText;
+        playerTab.innerText = `🔊 ${originalText}`;
+        setTimeout(() => {
+          playerTab.innerText = originalText;
+        }, 3000);
+      }
+    });
+
+    function updateTauntInputState() {
+      const tauntInput = document.getElementById('tauntInput');
+      const btnSend = document.getElementById('btnSendTaunt');
+      if (tauntInput && btnSend) {
+        tauntInput.disabled = myTurn;
+        btnSend.disabled = myTurn;
+        tauntInput.placeholder = myTurn ? 'Concentrate en tu turno...' : 'Chicana corta (máx 40)...';
+      }
+    }
+
+    // ==========================================
+    // 🏆 MANEJADOR DE FIN DE JUEGO
+    // ==========================================
+
+    socket.on('game:over', ({ winnerName, winnerId }) => {
+      document.getElementById('turnPopup').classList.remove('show');
+      const modal = document.getElementById('winnerModal');
+      const img = document.getElementById('endGameImg');
+      
+      const esGanador = (winnerId === socket.id);
+      const srcImagen = esGanador ? 'assets/winner.png' : 'assets/loser.png';
+
+      img.onerror = () => {
+        if (img.src.endsWith('.png')) {
+          img.src = esGanador ? 'assets/winner.jpg' : 'assets/loser.jpg';
+          return;
+        }
+
+        img.style.display = 'none';
+        let textOverlay = document.getElementById('endGameTextFallback');
+        if (!textOverlay) {
+          textOverlay = document.createElement('h1');
+          textOverlay.id = 'endGameTextFallback';
+          textOverlay.style.cssText = 'font-size: 36px; font-weight: bold; margin-bottom: 20px; text-shadow: 0 0 12px rgba(255,255,255,0.6); text-align: center;';
+          modal.insertBefore(textOverlay, modal.firstChild);
+        }
+        textOverlay.style.color = esGanador ? '#22c55e' : '#ef4444';
+        textOverlay.innerText = esGanador ? '🏆 ¡ERES EL DUEÑO DEL MAR! 🏆' : '💀 DERROTA 💀';
+      };
+
+      img.style.display = 'block';
+      img.src = srcImagen;
+      modal.style.display = 'flex';
+    });
   </script>
 </body>
 </html>

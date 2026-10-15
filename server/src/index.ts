@@ -152,7 +152,22 @@ io.on('connection', (socket) => {
       gameStarted: false,
       gameOver: false,
       boardHistories: { [socket.id]: {} }
+    
     };
+
+  // Evento para retransmitir las burlas de voz
+socket.on('taunt:send', ({ text }) => {
+  // Limitamos el texto a máximo 40 caracteres en el servidor por seguridad
+  const cleanText = String(text || '').slice(0, 40).trim();
+  if (!cleanText) return;
+
+  // Transmitimos a todos los demas jugadores de la partida/sala
+  // enviando el texto y el ID de quien envió la burla
+  socket.broadcast.emit('taunt:receive', {
+    senderId: socket.id,
+    text: cleanText
+  });
+});
 
     socket.join(roomCode);
     socket.emit('room:created', { roomCode });
