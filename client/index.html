@@ -1227,33 +1227,51 @@
     // 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
     // ==========================================
 
-    function speakTaunt(text) {
-      if (!('speechSynthesis' in window)) return;
-      
-      window.speechSynthesis.cancel();
+   // Reproduce el texto con voz en idioma inglés pero leyendo español (Efecto Repo/Gringo)
+function speakTaunt(text) {
+  if (!('speechSynthesis' in window)) return;
+  
+  window.speechSynthesis.cancel(); // Cancela audios anteriores
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'es-AR';
-      utterance.pitch = 0.8; // Tono robótico
-      utterance.rate = 1.0;
+  const utterance = new SpeechSynthesisUtterance(text);
+  
+  // Asignamos acento inglés (US/UK) para forzar la pronunciación chistosa
+  utterance.lang = 'en-US'; 
+  utterance.pitch = 0.7; // Tono grave/robótico
+  utterance.rate = 0.95; // Velocidad de lectura
 
-      window.speechSynthesis.speak(utterance);
-    }
+  // Si el navegador/celular tiene cargada la lista de voces, busca una voz en inglés
+  const voices = window.speechSynthesis.getVoices();
+  const englishVoice = voices.find(v => v.lang.includes('en'));
+  if (englishVoice) {
+    utterance.voice = englishVoice;
+  }
 
-    function sendTaunt() {
-      if (myTurn) {
-        log('⚠️ Solo podés chicanear durante el turno del rival.');
-        return;
-      }
+  window.speechSynthesis.speak(utterance);
+}
 
-      const input = document.getElementById('tauntInput');
-      const text = input ? input.value.trim() : '';
+// Envía la chicana al jugador de la pestaña activa
+function sendTaunt() {
+  if (myTurn) {
+    log('⚠️ Solo podés chicanear durante el turno del rival.');
+    return;
+  }
 
-      if (text.length === 0) return;
+  // Verificamos que no tenga seleccionada "Mi Flota"
+  if (activeTabId === 'my') {
+    alert('⚠️ Seleccioná la pestaña del rival al que le querés mandar la chicana.');
+    return;
+  }
 
-      socket.emit('taunt:send', { text });
-      input.value = '';
-    }
+  const input = document.getElementById('tauntInput');
+  const text = input ? input.value.trim() : '';
+
+  if (text.length === 0) return;
+
+  // Enviamos el texto y la ID del rival seleccionado
+  socket.emit('taunt:send', { text, targetId: activeTabId });
+  input.value = '';
+}
 
     document.addEventListener('DOMContentLoaded', () => {
       const tauntInput = document.getElementById('tauntInput');

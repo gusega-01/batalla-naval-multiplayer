@@ -155,18 +155,24 @@ io.on('connection', (socket) => {
     
     };
 
-  // Evento para retransmitir las burlas de voz
-socket.on('taunt:send', ({ text }) => {
-  // Limitamos el texto a máximo 40 caracteres en el servidor por seguridad
+// Evento para retransmitir las burlas de voz dirigidas
+socket.on('taunt:send', ({ text, targetId }) => {
   const cleanText = String(text || '').slice(0, 40).trim();
   if (!cleanText) return;
 
-  // Transmitimos a todos los demas jugadores de la partida/sala
-  // enviando el texto y el ID de quien envió la burla
-  socket.broadcast.emit('taunt:receive', {
-    senderId: socket.id,
-    text: cleanText
-  });
+  if (targetId) {
+    // Se lo manda únicamente al jugador seleccionado en la pestaña
+    io.to(targetId).emit('taunt:receive', {
+      senderId: socket.id,
+      text: cleanText
+    });
+  } else {
+    // Si no hay target, lo retransmite a todos
+    socket.broadcast.emit('taunt:receive', {
+      senderId: socket.id,
+      text: cleanText
+    });
+  }
 });
 
     socket.join(roomCode);
