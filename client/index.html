@@ -1361,94 +1361,121 @@ function sendTaunt() {
     // ... aquí termina tu código javascript anterior ...
 
 
-    // ==========================================
-    // 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
-    // ==========================================
+   // ==========================================
+// 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
+// ==========================================
 
-    let availableVoices = [];
-    function loadVoices() {
-      if (!('speechSynthesis' in window)) return;
-      availableVoices = window.speechSynthesis.getVoices();
-    }
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-      loadVoices();
-    }
+let availableVoices = [];
+let audioUnlocked = false;
 
-    function speakTaunt(text, gender = 'male', mode = 'es') {
-      if (!('speechSynthesis' in window)) return;
+// Cargar voces del sistema
+function loadVoices() {
+  if (!('speechSynthesis' in window)) return;
+  availableVoices = window.speechSynthesis.getVoices();
+}
 
-      window.speechSynthesis.cancel();
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+}
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      const targetLang = (mode === 'repo') ? 'en-US' : 'es-AR';
-      utterance.lang = targetLang;
-      utterance.pitch = (gender === 'male') ? 0.7 : 1.3;
-      utterance.rate = 0.95;
+// Desbloquear audio del navegador en celulares con el primer toque
+function unlockMobileAudio() {
+  if (audioUnlocked || !('speechSynthesis' in window)) return;
+  
+  // Emite un sonido mudo para forzar el permiso táctil
+  const dummyUtterance = new SpeechSynthesisUtterance('');
+  dummyUtterance.volume = 0;
+  window.speechSynthesis.speak(dummyUtterance);
+  audioUnlocked = true;
+}
 
-      const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
-      const matchedVoice = voices.find(v => {
-        const isLangMatch = v.lang.toLowerCase().includes(targetLang.split('-')[0]);
-        const nameLower = v.name.toLowerCase();
-        const isGenderMatch = (gender === 'female') 
-          ? (nameLower.includes('female') || nameLower.includes('zira') || nameLower.includes('sabina') || nameLower.includes('monica'))
-          : (nameLower.includes('male') || nameLower.includes('david') || nameLower.includes('pablo') || nameLower.includes('diego'));
-        return isLangMatch && isGenderMatch;
-      }) || voices.find(v => v.lang.toLowerCase().includes(targetLang.split('-')[0]));
+// Escuchar el primer toque en la pantalla del celular para habilitar el motor de voz
+document.addEventListener('touchstart', unlockMobileAudio, { once: true });
+document.addEventListener('click', unlockMobileAudio, { once: true });
 
-      if (matchedVoice) utterance.voice = matchedVoice;
+function speakTaunt(text, gender = 'male', mode = 'es') {
+  if (!('speechSynthesis' in window)) return;
 
-      window.speechSynthesis.speak(utterance);
-    }
+  unlockMobileAudio();
+  window.speechSynthesis.cancel(); // Cancela lecturas previas
 
-    function sendTaunt() {
-      if (myTurn) {
-        log('⚠️ Solo podés chicanear durante el turno del rival.');
-        return;
-      }
+  const utterance = new SpeechSynthesisUtterance(text);
+  const targetLang = (mode === 'repo') ? 'en-US' : 'es-AR';
+  
+  utterance.lang = targetLang;
+  utterance.pitch = (gender === 'male') ? 0.7 : 1.3;
+  utterance.rate = 0.95;
 
-      if (activeTabId === 'my') {
-        alert('⚠️ Seleccioná en las pestañas al rival que le querés mandar la chicana.');
-        return;
-      }
+  const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
+  const matchedVoice = voices.find(v => {
+    const isLangMatch = v.lang.toLowerCase().includes(targetLang.split('-')[0]);
+    const nameLower = v.name.toLowerCase();
+    const isGenderMatch = (gender === 'female') 
+      ? (nameLower.includes('female') || nameLower.includes('zira') || nameLower.includes('sabina') || nameLower.includes('monica'))
+      : (nameLower.includes('male') || nameLower.includes('david') || nameLower.includes('pablo') || nameLower.includes('diego'));
+    return isLangMatch && isGenderMatch;
+  }) || voices.find(v => v.lang.toLowerCase().includes(targetLang.split('-')[0]));
 
-      const input = document.getElementById('tauntInput');
-      const text = input ? input.value.trim() : '';
+  if (matchedVoice) utterance.voice = matchedVoice;
 
-      if (text.length === 0) return;
+  window.speechSynthesis.speak(utterance);
+}
 
-      const gender = document.getElementById('tauntGender')?.value || 'male';
-      const mode = document.getElementById('tauntMode')?.value || 'es';
+function sendTaunt() {
+  if (myTurn) {
+    log('⚠️ Solo podés chicanear durante el turno del rival.');
+    return;
+  }
 
-      socket.emit('taunt:send', { text, targetId: activeTabId, gender, mode });
-      input.value = '';
-    }
+  if (activeTabId === 'my') {
+    alert('⚠️ Seleccioná en las pestañas al rival que le querés mandar la chicana.');
+    return;
+  }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const tauntInput = document.getElementById('tauntInput');
-      if (tauntInput) {
-        tauntInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            sendTaunt();
-          }
-        });
+  const input = document.getElementById('tauntInput');
+  const text = input ? input.value.trim() : '';
+
+  if (text.length === 0) return;
+
+  const gender = document.getElementById('tauntGender')?.value || 'male';
+  const mode = document.getElementById('tauntMode')?.value || 'es';
+
+  // Forzar activación del audio local
+  unlockMobileAudio();
+
+  // Enviar chicana con destinatario activo
+  socket.emit('taunt:send', { text, targetId: activeTabId, gender, mode });
+  input.value = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const tauntInput = document.getElementById('tauntInput');
+  if (tauntInput) {
+    tauntInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendTaunt();
       }
     });
+  }
+});
 
-    socket.on('taunt:receive', ({ senderId, text, gender, mode }) => {
-      speakTaunt(text, gender, mode);
+// Recibir chicana
+socket.on('taunt:receive', ({ senderId, text, gender, mode }) => {
+  // 1. Mostrar en la consola log como respaldo de texto
+  log(`🗣️ <b>Chicana recibida:</b> "${text}"`);
 
-      const playerTab = document.querySelector(`[data-player-id="${senderId}"]`);
-      if (playerTab) {
-        const originalText = playerTab.innerText;
-        playerTab.innerText = `🔊 ${originalText}`;
-        setTimeout(() => {
-          playerTab.innerText = originalText;
-        }, 3000);
-      }
-    });
-  </script>
-</body>
-</html>
+  // 2. Intentar reproducir la voz
+  speakTaunt(text, gender, mode);
+
+  // 3. Titilar ícono en la pestaña del jugador emisor
+  const playerTab = document.querySelector(`[data-player-id="${senderId}"]`);
+  if (playerTab) {
+    const originalText = playerTab.innerText;
+    playerTab.innerText = `🔊 ${originalText}`;
+    setTimeout(() => {
+      playerTab.innerText = originalText;
+    }, 3000);
+  }
+});

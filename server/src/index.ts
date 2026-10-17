@@ -168,10 +168,8 @@ socket.on('taunt:send', ({ text, targetId, gender, mode }) => {
   };
 
   if (targetId) {
-    // Se lo manda únicamente al jugador seleccionado en la pestaña
     io.to(targetId).emit('taunt:receive', payload);
   } else {
-    // Si no hay target, lo retransmite a todos
     socket.broadcast.emit('taunt:receive', payload);
   }
 });
