@@ -1308,29 +1308,25 @@
     }
 
     function sendTaunt() {
-      if (myTurn) {
-        log('⚠️ Solo podés chicanear durante el turno del rival.');
-        return;
-      }
+  if (myTurn) {
+    log('⚠️ Solo podés chicanear durante el turno del rival.');
+    return;
+  }
 
-      if (activeTabId === 'my') {
-        alert('⚠️ Seleccioná en las pestañas al rival que le querés mandar la chicana.');
-        return;
-      }
+  const input = document.getElementById('tauntInput');
+  const text = input ? input.value.trim() : '';
 
-      const input = document.getElementById('tauntInput');
-      const text = input ? input.value.trim() : '';
+  if (text.length === 0) return;
 
-      if (text.length === 0) return;
+  const gender = document.getElementById('tauntGender')?.value || 'male';
+  const mode = document.getElementById('tauntMode')?.value || 'es';
 
-      const gender = document.getElementById('tauntGender')?.value || 'male';
-      const mode = document.getElementById('tauntMode')?.value || 'es';
+  unlockMobileAudio();
 
-      unlockMobileAudio();
-
-      socket.emit('taunt:send', { text, targetId: activeTabId, gender, mode });
-      input.value = '';
-    }
+  // Enviamos directo a la sala sin depender de la pestaña elegida
+  socket.emit('taunt:send', { text, gender, mode });
+  input.value = '';
+}
 
     document.addEventListener('DOMContentLoaded', () => {
       const tauntInput = document.getElementById('tauntInput');
