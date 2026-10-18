@@ -103,8 +103,10 @@ function generarFlotaBot(): { grid: (string | null)[][], ships: ShipInfo[] } {
   return { grid, ships };
 }
 
-function verificarYMarcarHundidos(player: Player, boardHistory: Record<string, string>) {
-  if (!player.ships) return;
+function verificarYMarcarHundidos(player: Player, boardHistory: Record<string, string>): number {
+  if (!player.ships) return 0;
+  let barcosHundidosEstaRonda = 0;
+
   player.ships.forEach(ship => {
     const todoGolpeado = ship.coords.every(c => {
       const key = `${c.r}_${c.c}`;
@@ -112,9 +114,13 @@ function verificarYMarcarHundidos(player: Player, boardHistory: Record<string, s
     });
 
     if (todoGolpeado) {
-      ship.coords.forEach(c => {
-        boardHistory[`${c.r}_${c.c}`] = 'sunk';
-      });
+      const yaEstabaHundido = ship.coords.every(c => boardHistory[`${c.r}_${c.c}`] === 'sunk');
+      if (!yaEstabaHundido) {
+        barcosHundidosEstaRonda++;
+        ship.coords.forEach(c => {
+          boardHistory[`${c.r}_${c.c}`] = 'sunk';
+        });
+      }
     }
   });
 
@@ -128,6 +134,8 @@ function verificarYMarcarHundidos(player: Player, boardHistory: Record<string, s
   if (!tieneBarcosVivos) {
     player.isEliminated = true;
   }
+
+  return barcosHundidosEstaRonda;
 }
 
 function chequearGanador(roomCode: string) {
@@ -144,12 +152,10 @@ function chequearGanador(roomCode: string) {
 
 io.on('connection', (socket) => {
 
-  // EVENTO DE CHICANAS REGISTRADO PARA TODOS LOS JUGADORES (HOST E INVITADOS)
   socket.on('taunt:send', ({ text, gender, mode }) => {
     const cleanText = String(text || '').slice(0, 40).trim();
     if (!cleanText) return;
 
-    // Buscamos a qué sala pertenece este socket activo
     let userRoomCode: string | null = null;
     for (const [code, room] of Object.entries(rooms)) {
       if (room.players.some(p => p.id === socket.id)) {
@@ -166,7 +172,6 @@ io.on('connection', (socket) => {
     };
 
     if (userRoomCode) {
-      // Retransmite a todos los demás miembros de la sala del jugador
       socket.to(userRoomCode).emit('taunt:receive', payload);
     } else {
       socket.broadcast.emit('taunt:receive', payload);
@@ -333,7 +338,16 @@ io.on('connection', (socket) => {
         shipObj.coords = newCoords;
       }
     } else if (type === 'shield') {
-      room.boardHistories[socket.id][`${row}_${col}`] = 'shielded';
+      const key = `${row}_${col}`;
+      const estadoActual = room.boardHistories[socket.id]?.[key];
+      // Solo permite poner escudo si la casilla esta sana
+      if (!estadoActual || estadoActual === 'sonar') {
+        room.boardHistories[socket.id][key] = 'shielded';
+      } else {
+        // Reembolsa energía si no pudo aplicarse
+        activePlayer.energy = Math.min(10, activePlayer.energy + (cost || 0));
+        return;
+      }
     } else if (type === 'repair') {
       delete room.boardHistories[socket.id][`${row}_${col}`];
     } else {
@@ -369,28 +383,33 @@ io.on('connection', (socket) => {
               c: Math.floor(Math.random() * 10)
             });
           }
-        } else if (type === 'sonar') {
-          for (let dr = 0; dr < 2; dr++) {
-            for (let dc = 0; dc < 2; dc++) {
-              if (row + dr < 10 && col + dc < 10) {
-                const key = `${row + dr}_${col + dc}`;
-                if (targetPlayer.grid[row + dr][col + dc] !== null) {
-                  room.boardHistories[targetId][key] = 'sonar';
-                }
-              }
+        } else if (type === 'drone') {
+          // DRON TÁCTICO: Línea Horizontal o Vertical completa 50/50
+          const esHorizontal = Math.random() < 0.5;
+          for (let i = 0; i < 10; i++) {
+            const targetR = esHorizontal ? row : i;
+            const targetC = esHorizontal ? i : col;
+            const key = `${targetR}_${targetC}`;
+
+            if (targetPlayer.grid[targetR][targetC] !== null && !room.boardHistories[targetId][key]) {
+              room.boardHistories[targetId][key] = 'sonar';
             }
           }
         }
 
-        if (type !== 'sonar') {
+        if (type !== 'drone') {
+          let hitsConsagrados = 0;
+
           coordsAfectadas.forEach(({ r, c }) => {
             if (r >= 0 && r < 10 && c >= 0 && c < 10) {
               const key = `${r}_${c}`;
               if (room.boardHistories[targetId][key] === 'shielded') {
-                delete room.boardHistories[targetId][key];
+                delete room.boardHistories[targetId][key]; // Rompe escudo (0 de energía)
               } else if (targetPlayer.grid[r][c] !== null) {
-                room.boardHistories[targetId][key] = 'hit';
-                activePlayer.energy = Math.min(10, activePlayer.energy + 1);
+                if (room.boardHistories[targetId][key] !== 'hit' && room.boardHistories[targetId][key] !== 'sunk') {
+                  room.boardHistories[targetId][key] = 'hit';
+                  hitsConsagrados++;
+                }
               } else {
                 if (!room.boardHistories[targetId][key]) {
                   room.boardHistories[targetId][key] = 'water';
@@ -399,7 +418,15 @@ io.on('connection', (socket) => {
             }
           });
 
-          verificarYMarcarHundidos(targetPlayer, room.boardHistories[targetId]);
+          const nuevosHundidos = verificarYMarcarHundidos(targetPlayer, room.boardHistories[targetId]);
+
+          if (nuevosHundidos > 0) {
+            // Hundimiento da 3 de energía exactos por barco hundido
+            activePlayer.energy = Math.min(10, activePlayer.energy + (nuevosHundidos * 3));
+          } else if (hitsConsagrados > 0) {
+            // Acierto normal da 2 de energía por cada impacto nuevo
+            activePlayer.energy = Math.min(10, activePlayer.energy + (hitsConsagrados * 2));
+          }
         }
       }
     }

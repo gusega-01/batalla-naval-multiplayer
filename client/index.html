@@ -437,7 +437,7 @@
 
       <button class="skill-btn active" id="btnShot" onclick="setSkill('basic_shot')">💥 Normal (0⚡)</button>
       <button class="skill-btn" id="btnCross" onclick="setSkill('cross_shot')">➕ Cruz (4⚡)</button>
-      <button class="skill-btn" id="btnSonar" onclick="setSkill('sonar')">📡 Sonar (2⚡)</button>
+      <button class="skill-btn" id="btnDrone" onclick="setSkill('drone')">🛸 Dron (3⚡)</button>
       <button class="skill-btn" id="btnRain" onclick="setSkill('rain')">🌧️ Lluvia (6⚡)</button>
 
       <button class="skill-btn defensive" id="btnShield" onclick="setSkill('shield')">🛡️ Escudo (2⚡)</button>
@@ -829,7 +829,7 @@
       shipToMove = null;
       document.querySelectorAll('.skill-btn').forEach(b => b.classList.remove('active'));
       const map = {
-        basic_shot: 'btnShot', cross_shot: 'btnCross', sonar: 'btnSonar', rain: 'btnRain',
+        basic_shot: 'btnShot', cross_shot: 'btnCross', drone: 'btnDrone', rain: 'btnRain',
         shield: 'btnShield', move_ship: 'btnMove', repair: 'btnRepair'
       };
       if (map[skill]) document.getElementById(map[skill]).classList.add('active');
@@ -984,7 +984,6 @@
       renderShipsOverlay();
     }
 
-    /* ANIMACIÓN DE MISIL ÚNICO */
     function lanzarUnMisil(targetCell, onHitCallback) {
       const W = 38, H = 95;
       const rect = targetCell.getBoundingClientRect();
@@ -1044,7 +1043,6 @@
       setTimeout(terminar, 1200);
     }
 
-    /* ANIMACIÓN COMPLETA (SOPORTA 8 MISILES EN RÁFAGA PARA LLUVIA) */
     function animarMisil(targetCell, callback) {
       document.getElementById('turnPopup').classList.remove('show');
 
@@ -1130,7 +1128,7 @@
       if (!myTurn) return alert('¡Esperá tu turno!');
       if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
 
-      if (['basic_shot', 'cross_shot', 'rain', 'sonar'].includes(selectedSkill)) {
+      if (['basic_shot', 'cross_shot', 'rain', 'drone'].includes(selectedSkill)) {
         return alert('❌ No podés disparar sobre tu propia flota.');
       }
 
@@ -1140,6 +1138,13 @@
       if (myEnergy < cost) return alert('⚡ Energía insuficiente');
 
       if (selectedSkill === 'shield') {
+        const key = `${r}_${c}`;
+        const estadoActual = boardHistories[socket.id] ? boardHistories[socket.id][key] : null;
+
+        if (estadoActual === 'hit' || estadoActual === 'sunk' || estadoActual === 'water') {
+          return alert('⚠️ No podés escudar una casilla dañada, hundida o golpeada. ¡Reparala primero!');
+        }
+
         socket.emit('game:action', {
           roomCode: currentRoomCode,
           targetId: socket.id,
@@ -1179,7 +1184,7 @@
         return alert(`¡Pestaña bloqueada! Tenés que dispararle a tu objetivo de la ruleta.`);
       }
 
-      const costs = { basic_shot: 0, cross_shot: 4, sonar: 2, rain: 6 };
+      const costs = { basic_shot: 0, cross_shot: 4, drone: 3, rain: 6 };
       const cost = costs[selectedSkill] || 0;
 
       if (myEnergy < cost) return alert('⚡ Energía insuficiente');
@@ -1216,10 +1221,6 @@
       }
     }
 
-    // ==========================================
-    // 🏆 MANEJADOR DE FIN DE JUEGO
-    // ==========================================
-
     socket.on('game:over', ({ winnerName, winnerId }) => {
       document.getElementById('turnPopup').classList.remove('show');
       const modal = document.getElementById('winnerModal');
@@ -1250,10 +1251,6 @@
       img.src = srcImagen;
       modal.style.display = 'flex';
     });
-
-    // ==========================================
-    // 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
-    // ==========================================
 
     let availableVoices = [];
     let audioUnlocked = false;
@@ -1308,25 +1305,24 @@
     }
 
     function sendTaunt() {
-  if (myTurn) {
-    log('⚠️ Solo podés chicanear durante el turno del rival.');
-    return;
-  }
+      if (myTurn) {
+        log('⚠️ Solo podés chicanear durante el turno del rival.');
+        return;
+      }
 
-  const input = document.getElementById('tauntInput');
-  const text = input ? input.value.trim() : '';
+      const input = document.getElementById('tauntInput');
+      const text = input ? input.value.trim() : '';
 
-  if (text.length === 0) return;
+      if (text.length === 0) return;
 
-  const gender = document.getElementById('tauntGender')?.value || 'male';
-  const mode = document.getElementById('tauntMode')?.value || 'es';
+      const gender = document.getElementById('tauntGender')?.value || 'male';
+      const mode = document.getElementById('tauntMode')?.value || 'es';
 
-  unlockMobileAudio();
+      unlockMobileAudio();
 
-  // Enviamos directo a la sala sin depender de la pestaña elegida
-  socket.emit('taunt:send', { text, gender, mode });
-  input.value = '';
-}
+      socket.emit('taunt:send', { text, gender, mode });
+      input.value = '';
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       const tauntInput = document.getElementById('tauntInput');
