@@ -1187,33 +1187,42 @@
 }
 
     function dispararRivalConMisil(r, c, cellElem) {
-      if (disparoEnCurso) return;
-      if (!myTurn) return alert('¡Esperá tu turno para disparar!');
-      if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
+  if (disparoEnCurso) return;
+  if (!myTurn) return alert('⚠️ ¡Esperá tu turno para disparar!');
+  if (!rouletteSpun) return alert('⚠️ ¡Primero girá la ruleta!');
 
-      if (!isFreeChoice && activeTabId !== currentTargetId) {
-        return alert(`¡Pestaña bloqueada! Tenés que dispararle a tu objetivo de la ruleta.`);
-      }
+  // Validación de Escudo usado en pestaña o tablero rival
+  if (selectedSkill === 'shield') {
+    return alert('⚠️ ¡Movimiento inválido! El Escudo Protector solo puede ser usado en tu propia flota (Pestaña "Mi Flota").');
+  }
 
-      const costs = { basic_shot: 0, cross_shot: 4, drone: 3, rain: 6 };
-      const cost = costs[selectedSkill] || 0;
+  if (selectedSkill === 'repair' || selectedSkill === 'move_ship') {
+    return alert('⚠️ ¡Movimiento inválido! Esta habilidad es de uso exclusivo en tu propia flota.');
+  }
 
-      if (myEnergy < cost) return alert('⚡ Energía insuficiente');
+  if (!isFreeChoice && activeTabId !== currentTargetId) {
+    return alert(`⚠️ ¡Pestaña bloqueada! Tenés que dispararle a tu objetivo de la ruleta.`);
+  }
 
-      disparoEnCurso = true;
-      animarMisil(cellElem, () => {
-        socket.emit('game:action', {
-          roomCode: currentRoomCode,
-          targetId: activeTabId,
-          row: r,
-          col: c,
-          type: selectedSkill,
-          cost
-        });
-        disparoEnCurso = false;
-        setSkill('basic_shot');
-      });
-    }
+  const costs = { basic_shot: 0, cross_shot: 4, drone: 3, rain: 6 };
+  const cost = costs[selectedSkill] || 0;
+
+  if (myEnergy < cost) return alert('⚡ Energía insuficiente');
+
+  disparoEnCurso = true;
+  animarMisil(cellElem, () => {
+    socket.emit('game:action', {
+      roomCode: currentRoomCode,
+      targetId: activeTabId,
+      row: r,
+      col: c,
+      type: selectedSkill,
+      cost
+    });
+    disparoEnCurso = false;
+    setSkill('basic_shot');
+  });
+}
 
     function copiarLink() {
       const copyText = document.getElementById('inviteLinkInput');
