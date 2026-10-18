@@ -19,7 +19,6 @@
       box-sizing: border-box;
     }
 
-    /* CONTENEDOR ENCUADRADO CON LA IMAGEN DE FONDO */
     .game-layout-container {
       width: 100%;
       max-width: 500px;
@@ -28,7 +27,7 @@
       align-items: center;
       background: url('assets/war-bg.jpg') no-repeat center top;
       background-size: 100% auto;
-      padding-top: 110px; /* Deja ver el título 'BATALLA NAVAL' de la imagen */
+      padding-top: 110px;
       padding-bottom: 20px;
       padding-left: 10px;
       padding-right: 10px;
@@ -168,52 +167,6 @@
       font-weight: bold;
       font-size: 12px;
       border: 1px solid #f1c40f;
-    }
-
-    /* CHICANA TAUNT CHAT CONTAINER */
-    #tauntContainer {
-      margin: 6px 0;
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    #tauntInput {
-      flex: 1;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(15, 23, 42, 0.9);
-      color: #fff;
-      font-size: 13px;
-      outline: none;
-    }
-
-    #tauntInput:disabled {
-      background: rgba(9, 13, 22, 0.6);
-      color: #64748b;
-      cursor: not-allowed;
-    }
-
-    #btnSendTaunt {
-      padding: 8px 14px;
-      border-radius: 6px;
-      border: none;
-      background: #e11d48;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background 0.2s;
-    }
-
-    #btnSendTaunt:disabled {
-      background: #4c0519;
-      cursor: not-allowed;
-      opacity: 0.5;
     }
 
     #consoleLog {
@@ -442,9 +395,9 @@
       <input type="text" id="playerNameInput" placeholder="Ej: Gustavo" maxlength="12">
       <hr style="border-color:rgba(255,255,255,0.1); margin:12px 0;">
       <button type="button" class="btn-primary" onclick="crearSala()">✨ Crear Nueva Sala</button>
-<br><br>
-<input type="text" id="roomCodeInput" placeholder="Código de Sala">
-<button type="button" class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
+      <br><br>
+      <input type="text" id="roomCodeInput" placeholder="Código de Sala">
+      <button type="button" class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
     </div>
 
     <!-- Invitación QR -->
@@ -492,35 +445,34 @@
       <button class="skill-btn defensive" id="btnRepair" onclick="setSkill('repair')">🔧 Reparar (3⚡)</button>
     </div>
 
-    <!-- CAJA DE CHICANAS / TAUNT CHAT (VOZ ROBÓTICA) -->
     <!-- CAJA DE CHICANAS / TAUNT CHAT CON OPCIONES DE VOZ -->
-<div id="tauntContainer" class="invite-card" style="display: none; padding: 10px; flex-direction: column; gap: 8px;">
-  <div style="display: flex; gap: 6px; width: 100%;">
-    <input 
-      type="text" 
-      id="tauntInput" 
-      maxlength="40" 
-      placeholder="Chicana corta (máx 40)..." 
-      style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.9); color: #fff; font-size: 13px; outline: none;"
-    />
-    <button id="btnSendTaunt" onclick="sendTaunt()" style="padding: 8px 16px; background: #e11d48; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-      Enviar 🗣️
-    </button>
-  </div>
+    <div id="tauntContainer" class="invite-card" style="display: none; padding: 10px; flex-direction: column; gap: 8px;">
+      <div style="display: flex; gap: 6px; width: 100%;">
+        <input 
+          type="text" 
+          id="tauntInput" 
+          maxlength="40" 
+          placeholder="Chicana corta (máx 40)..." 
+          style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.9); color: #fff; font-size: 13px; outline: none;"
+        />
+        <button id="btnSendTaunt" onclick="sendTaunt()" style="padding: 8px 16px; background: #e11d48; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+          Enviar 🗣️
+        </button>
+      </div>
 
-  <!-- SELECTORES DE VOZ Y ACCENTO -->
-  <div style="display: flex; gap: 6px; justify-content: space-between; width: 100%; font-size: 12px;">
-    <select id="tauntGender" style="background: rgba(9,13,22,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px; flex: 1;">
-      <option value="male">👨 Voz Masculina</option>
-      <option value="female">👩 Voz Femenina</option>
-    </select>
+      <!-- SELECTORES DE VOZ Y ACENTO -->
+      <div style="display: flex; gap: 6px; justify-content: space-between; width: 100%; font-size: 12px;">
+        <select id="tauntGender" style="background: rgba(9,13,22,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px; flex: 1;">
+          <option value="male">👨 Voz Masculina</option>
+          <option value="female">👩 Voz Femenina</option>
+        </select>
 
-    <select id="tauntMode" style="background: rgba(9,13,22,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px; flex: 1;">
-      <option value="es">🇦🇷 Español Natural</option>
-      <option value="repo">🤖 Efecto Repo (Gringo)</option>
-    </select>
-  </div>
-</div>
+        <select id="tauntMode" style="background: rgba(9,13,22,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px; flex: 1;">
+          <option value="es">🇦🇷 Español Natural</option>
+          <option value="repo">🤖 Efecto Repo (Gringo)</option>
+        </select>
+      </div>
+    </div>
 
     <div id="consoleLog">Ingresá tu apodo para comenzar...</div>
 
@@ -588,8 +540,10 @@
 
     function log(msg) {
       const el = document.getElementById('consoleLog');
-      el.innerHTML += `<div>> ${msg}</div>`;
-      el.scrollTop = el.scrollHeight;
+      if (el) {
+        el.innerHTML += `<div>> ${msg}</div>`;
+        el.scrollTop = el.scrollHeight;
+      }
     }
 
     function toggleOrientation() {
@@ -604,35 +558,39 @@
       renderActiveBoard();
     }
 
-  function getPlayerName() {
-  const nameInput = document.getElementById('playerNameInput');
-  const name = nameInput ? nameInput.value.trim() : '';
-  if (!name) { 
-    alert('⚠️ Por favor, ingresá un apodo de capitán.'); 
-    return null; 
-  }
-  return name;
-}
+    function getPlayerName() {
+      const nameInput = document.getElementById('playerNameInput');
+      const name = nameInput ? nameInput.value.trim() : '';
+      if (!name) { 
+        alert('⚠️ Por favor, ingresá un apodo de capitán.'); 
+        return null; 
+      }
+      return name;
+    }
 
-function crearSala() {
-  const name = getPlayerName();
-  if (!name) return;
-  log(`Creando sala para ${name}...`);
-  socket.emit('room:create', { hostName: name });
-}
+    function crearSala() {
+      const name = getPlayerName();
+      if (!name) return;
+      log(`Creando sala para ${name}...`);
+      socket.emit('room:create', { hostName: name });
+    }
 
-function unirseASala() {
-  const name = getPlayerName();
-  if (!name) return;
-  const codeInput = document.getElementById('roomCodeInput');
-  const code = codeInput ? codeInput.value.trim() : '';
-  if (!code) {
-    alert('⚠️ Ingresá el código de la sala.');
-    return;
-  }
-  log(`Uniéndose a la sala ${code}...`);
-  socket.emit('room:join', { roomCode: code, playerName: name });
-}
+    function unirseASala() {
+      const name = getPlayerName();
+      if (!name) return;
+      const codeInput = document.getElementById('roomCodeInput');
+      const code = codeInput ? codeInput.value.trim() : '';
+      if (!code) {
+        alert('⚠️ Ingresá el código de la sala.');
+        return;
+      }
+      log(`Uniéndose a la sala ${code}...`);
+      socket.emit('room:join', { roomCode: code, playerName: name });
+    }
+
+    function agregarBot() {
+      socket.emit('room:add_bot', { roomCode: currentRoomCode });
+    }
 
     socket.on('room:created', ({ roomCode }) => {
       currentRoomCode = roomCode;
@@ -1248,78 +1206,6 @@ function unirseASala() {
       alert('¡Link de invitación copiado!');
     }
 
-    // ==========================================
-    // 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
-    // ==========================================
-
-   // Reproduce el texto con voz en idioma inglés pero leyendo español (Efecto Repo/Gringo)
-function speakTaunt(text) {
-  if (!('speechSynthesis' in window)) return;
-  
-  window.speechSynthesis.cancel(); // Cancela audios anteriores
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  
-  // Asignamos acento inglés (US/UK) para forzar la pronunciación chistosa
-  utterance.lang = 'en-US'; 
-  utterance.pitch = 0.7; // Tono grave/robótico
-  utterance.rate = 0.95; // Velocidad de lectura
-
-  // Si el navegador/celular tiene cargada la lista de voces, busca una voz en inglés
-  const voices = window.speechSynthesis.getVoices();
-  const englishVoice = voices.find(v => v.lang.includes('en'));
-  if (englishVoice) {
-    utterance.voice = englishVoice;
-  }
-
-  window.speechSynthesis.speak(utterance);
-}
-
-// Envía la chicana al jugador de la pestaña activa
-function sendTaunt() {
-  if (myTurn) {
-    log('⚠️ Solo podés chicanear durante el turno del rival.');
-    return;
-  }
-
-  // Verificamos que no tenga seleccionada "Mi Flota"
-  if (activeTabId === 'my') {
-    alert('⚠️ Seleccioná la pestaña del rival al que le querés mandar la chicana.');
-    return;
-  }
-
-  const input = document.getElementById('tauntInput');
-  const text = input ? input.value.trim() : '';
-
-  if (text.length === 0) return;
-
-  // Enviamos el texto y la ID del rival seleccionado
-  socket.emit('taunt:send', { text, targetId: activeTabId });
-  input.value = '';
-}
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const tauntInput = document.getElementById('tauntInput');
-      if (tauntInput) {
-        tauntInput.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') sendTaunt();
-        });
-      }
-    });
-
-    socket.on('taunt:receive', ({ senderId, text }) => {
-      speakTaunt(text);
-
-      const playerTab = document.querySelector(`[data-player-id="${senderId}"]`);
-      if (playerTab) {
-        const originalText = playerTab.innerText;
-        playerTab.innerText = `🔊 ${originalText}`;
-        setTimeout(() => {
-          playerTab.innerText = originalText;
-        }, 3000);
-      }
-    });
-
     function updateTauntInputState() {
       const tauntInput = document.getElementById('tauntInput');
       const btnSend = document.getElementById('btnSendTaunt');
@@ -1364,124 +1250,113 @@ function sendTaunt() {
       img.src = srcImagen;
       modal.style.display = 'flex';
     });
-    // ... aquí termina tu código javascript anterior ...
 
+    // ==========================================
+    // 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
+    // ==========================================
 
-   // ==========================================
-// 🔊 SISTEMA DE CHICANAS POR VOZ (TAUNTS)
-// ==========================================
+    let availableVoices = [];
+    let audioUnlocked = false;
 
-let availableVoices = [];
-let audioUnlocked = false;
+    function loadVoices() {
+      if (!('speechSynthesis' in window)) return;
+      availableVoices = window.speechSynthesis.getVoices();
+    }
 
-// Cargar voces del sistema
-function loadVoices() {
-  if (!('speechSynthesis' in window)) return;
-  availableVoices = window.speechSynthesis.getVoices();
-}
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+      loadVoices();
+    }
 
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-  loadVoices();
-}
+    function unlockMobileAudio() {
+      if (audioUnlocked || !('speechSynthesis' in window)) return;
+      const dummyUtterance = new SpeechSynthesisUtterance('');
+      dummyUtterance.volume = 0;
+      window.speechSynthesis.speak(dummyUtterance);
+      audioUnlocked = true;
+    }
 
-// Desbloquear audio del navegador en celulares con el primer toque
-function unlockMobileAudio() {
-  if (audioUnlocked || !('speechSynthesis' in window)) return;
-  
-  // Emite un sonido mudo para forzar el permiso táctil
-  const dummyUtterance = new SpeechSynthesisUtterance('');
-  dummyUtterance.volume = 0;
-  window.speechSynthesis.speak(dummyUtterance);
-  audioUnlocked = true;
-}
+    document.addEventListener('touchstart', unlockMobileAudio, { once: true });
+    document.addEventListener('click', unlockMobileAudio, { once: true });
 
-// Escuchar el primer toque en la pantalla del celular para habilitar el motor de voz
-document.addEventListener('touchstart', unlockMobileAudio, { once: true });
-document.addEventListener('click', unlockMobileAudio, { once: true });
+    function speakTaunt(text, gender = 'male', mode = 'es') {
+      if (!('speechSynthesis' in window)) return;
 
-function speakTaunt(text, gender = 'male', mode = 'es') {
-  if (!('speechSynthesis' in window)) return;
+      unlockMobileAudio();
+      window.speechSynthesis.cancel();
 
-  unlockMobileAudio();
-  window.speechSynthesis.cancel(); // Cancela lecturas previas
+      const utterance = new SpeechSynthesisUtterance(text);
+      const targetLang = (mode === 'repo') ? 'en-US' : 'es-AR';
+      
+      utterance.lang = targetLang;
+      utterance.pitch = (gender === 'male') ? 0.7 : 1.3;
+      utterance.rate = 0.95;
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  const targetLang = (mode === 'repo') ? 'en-US' : 'es-AR';
-  
-  utterance.lang = targetLang;
-  utterance.pitch = (gender === 'male') ? 0.7 : 1.3;
-  utterance.rate = 0.95;
+      const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
+      const matchedVoice = voices.find(v => {
+        const isLangMatch = v.lang.toLowerCase().includes(targetLang.split('-')[0]);
+        const nameLower = v.name.toLowerCase();
+        const isGenderMatch = (gender === 'female') 
+          ? (nameLower.includes('female') || nameLower.includes('zira') || nameLower.includes('sabina') || nameLower.includes('monica'))
+          : (nameLower.includes('male') || nameLower.includes('david') || nameLower.includes('pablo') || nameLower.includes('diego'));
+        return isLangMatch && isGenderMatch;
+      }) || voices.find(v => v.lang.toLowerCase().includes(targetLang.split('-')[0]));
 
-  const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
-  const matchedVoice = voices.find(v => {
-    const isLangMatch = v.lang.toLowerCase().includes(targetLang.split('-')[0]);
-    const nameLower = v.name.toLowerCase();
-    const isGenderMatch = (gender === 'female') 
-      ? (nameLower.includes('female') || nameLower.includes('zira') || nameLower.includes('sabina') || nameLower.includes('monica'))
-      : (nameLower.includes('male') || nameLower.includes('david') || nameLower.includes('pablo') || nameLower.includes('diego'));
-    return isLangMatch && isGenderMatch;
-  }) || voices.find(v => v.lang.toLowerCase().includes(targetLang.split('-')[0]));
+      if (matchedVoice) utterance.voice = matchedVoice;
 
-  if (matchedVoice) utterance.voice = matchedVoice;
+      window.speechSynthesis.speak(utterance);
+    }
 
-  window.speechSynthesis.speak(utterance);
-}
+    function sendTaunt() {
+      if (myTurn) {
+        log('⚠️ Solo podés chicanear durante el turno del rival.');
+        return;
+      }
 
-function sendTaunt() {
-  if (myTurn) {
-    log('⚠️ Solo podés chicanear durante el turno del rival.');
-    return;
-  }
+      if (activeTabId === 'my') {
+        alert('⚠️ Seleccioná en las pestañas al rival que le querés mandar la chicana.');
+        return;
+      }
 
-  if (activeTabId === 'my') {
-    alert('⚠️ Seleccioná en las pestañas al rival que le querés mandar la chicana.');
-    return;
-  }
+      const input = document.getElementById('tauntInput');
+      const text = input ? input.value.trim() : '';
 
-  const input = document.getElementById('tauntInput');
-  const text = input ? input.value.trim() : '';
+      if (text.length === 0) return;
 
-  if (text.length === 0) return;
+      const gender = document.getElementById('tauntGender')?.value || 'male';
+      const mode = document.getElementById('tauntMode')?.value || 'es';
 
-  const gender = document.getElementById('tauntGender')?.value || 'male';
-  const mode = document.getElementById('tauntMode')?.value || 'es';
+      unlockMobileAudio();
 
-  // Forzar activación del audio local
-  unlockMobileAudio();
+      socket.emit('taunt:send', { text, targetId: activeTabId, gender, mode });
+      input.value = '';
+    }
 
-  // Enviar chicana con destinatario activo
-  socket.emit('taunt:send', { text, targetId: activeTabId, gender, mode });
-  input.value = '';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const tauntInput = document.getElementById('tauntInput');
-  if (tauntInput) {
-    tauntInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        sendTaunt();
+    document.addEventListener('DOMContentLoaded', () => {
+      const tauntInput = document.getElementById('tauntInput');
+      if (tauntInput) {
+        tauntInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            sendTaunt();
+          }
+        });
       }
     });
-  }
-});
 
-// Recibir chicana
-socket.on('taunt:receive', ({ senderId, text, gender, mode }) => {
-  // 1. Mostrar en la consola log como respaldo de texto
-  log(`🗣️ <b>Chicana recibida:</b> "${text}"`);
+    socket.on('taunt:receive', ({ senderId, text, gender, mode }) => {
+      log(`🗣️ <b>Chicana recibida:</b> "${text}"`);
+      speakTaunt(text, gender, mode);
 
-  // 2. Intentar reproducir la voz
-  speakTaunt(text, gender, mode);
-
-  // 3. Titilar ícono en la pestaña del jugador emisor
-  const playerTab = document.querySelector(`[data-player-id="${senderId}"]`);
-  if (playerTab) {
-    const originalText = playerTab.innerText;
-    playerTab.innerText = `🔊 ${originalText}`;
-    setTimeout(() => {
-      playerTab.innerText = originalText;
-    }, 3000);
-  }
-});
+      const playerTab = document.querySelector(`[data-player-id="${senderId}"]`);
+      if (playerTab) {
+        const originalText = playerTab.innerText;
+        playerTab.innerText = `🔊 ${originalText}`;
+        setTimeout(() => {
+          playerTab.innerText = originalText;
+        }, 3000);
+      }
+    });
+  </script>
+</body>
+</html>
