@@ -143,6 +143,36 @@ function chequearGanador(roomCode: string) {
 }
 
 io.on('connection', (socket) => {
+
+  // EVENTO DE CHICANAS REGISTRADO PARA TODOS LOS JUGADORES (HOST E INVITADOS)
+  socket.on('taunt:send', ({ text, gender, mode }) => {
+    const cleanText = String(text || '').slice(0, 40).trim();
+    if (!cleanText) return;
+
+    // Buscamos a qué sala pertenece este socket activo
+    let userRoomCode: string | null = null;
+    for (const [code, room] of Object.entries(rooms)) {
+      if (room.players.some(p => p.id === socket.id)) {
+        userRoomCode = code;
+        break;
+      }
+    }
+
+    const payload = {
+      senderId: socket.id,
+      text: cleanText,
+      gender: gender || 'male',
+      mode: mode || 'es'
+    };
+
+    if (userRoomCode) {
+      // Retransmite a todos los demás miembros de la sala del jugador
+      socket.to(userRoomCode).emit('taunt:receive', payload);
+    } else {
+      socket.broadcast.emit('taunt:receive', payload);
+    }
+  });
+
   socket.on('room:create', ({ hostName }) => {
     const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
     rooms[roomCode] = {
@@ -152,27 +182,7 @@ io.on('connection', (socket) => {
       gameStarted: false,
       gameOver: false,
       boardHistories: { [socket.id]: {} }
-    
     };
-
-// Evento para retransmitir las burlas de voz dirigidas con género y modo
-socket.on('taunt:send', ({ text, targetId, gender, mode }) => {
-  const cleanText = String(text || '').slice(0, 40).trim();
-  if (!cleanText) return;
-
-  const payload = {
-    senderId: socket.id,
-    text: cleanText,
-    gender: gender || 'male',
-    mode: mode || 'es'
-  };
-
-  if (targetId) {
-    io.to(targetId).emit('taunt:receive', payload);
-  } else {
-    socket.broadcast.emit('taunt:receive', payload);
-  }
-});
 
     socket.join(roomCode);
     socket.emit('room:created', { roomCode });
@@ -335,7 +345,6 @@ socket.on('taunt:send', ({ text, targetId, gender, mode }) => {
         else if (type === 'cross_shot') {
           coordsAfectadas.push({ r: row, c: col }, { r: row - 1, c: col }, { r: row + 1, c: col }, { r: row, c: col - 1 }, { r: row, c: col + 1 });
         } else if (type === 'rain') {
-          /* LLUVIA DE 8 MISILES INTELIGENTE */
           const unvisited: { r: number, c: number }[] = [];
           for (let rIdx = 0; rIdx < 10; rIdx++) {
             for (let cIdx = 0; cIdx < 10; cIdx++) {
@@ -346,7 +355,6 @@ socket.on('taunt:send', ({ text, targetId, gender, mode }) => {
             }
           }
 
-          // Mezclar casillas sin visitar
           for (let i = unvisited.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [unvisited[i], unvisited[j]] = [unvisited[j], unvisited[i]];
@@ -355,7 +363,6 @@ socket.on('taunt:send', ({ text, targetId, gender, mode }) => {
           const elegidas = unvisited.slice(0, 8);
           coordsAfectadas.push(...elegidas);
 
-          // Si hay menos de 8 disponibles, rellenar con aleatorias
           while (coordsAfectadas.length < 8) {
             coordsAfectadas.push({
               r: Math.floor(Math.random() * 10),
