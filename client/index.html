@@ -604,49 +604,35 @@
       renderActiveBoard();
     }
 
-    function getPlayerName() {
-      const name = document.getElementById('playerNameInput').value.trim();
-      if (!name) { alert('Ingresá un apodo'); return null; }
-      return name;
-    }
-
-    window.crearSala = function() {
+  function getPlayerName() {
   const nameInput = document.getElementById('playerNameInput');
   const name = nameInput ? nameInput.value.trim() : '';
-
-  if (!name) {
-    alert('⚠️ Por favor, ingresá un apodo de capitán.');
-    return;
+  if (!name) { 
+    alert('⚠️ Por favor, ingresá un apodo de capitán.'); 
+    return null; 
   }
+  return name;
+}
 
+function crearSala() {
+  const name = getPlayerName();
+  if (!name) return;
   log(`Creando sala para ${name}...`);
   socket.emit('room:create', { hostName: name });
-};
+}
 
-window.unirseASala = function() {
-  const nameInput = document.getElementById('playerNameInput');
-  const name = nameInput ? nameInput.value.trim() : '';
-
+function unirseASala() {
+  const name = getPlayerName();
+  if (!name) return;
   const codeInput = document.getElementById('roomCodeInput');
   const code = codeInput ? codeInput.value.trim() : '';
-
-  if (!name) {
-    alert('⚠️ Por favor, ingresá un apodo de capitán.');
-    return;
-  }
-
   if (!code) {
     alert('⚠️ Ingresá el código de la sala.');
     return;
   }
-
   log(`Uniéndose a la sala ${code}...`);
   socket.emit('room:join', { roomCode: code, playerName: name });
-};
-
-    function agregarBot() {
-      socket.emit('room:add_bot', { roomCode: currentRoomCode });
-    }
+}
 
     socket.on('room:created', ({ roomCode }) => {
       currentRoomCode = roomCode;
