@@ -338,16 +338,18 @@ io.on('connection', (socket) => {
         shipObj.coords = newCoords;
       }
     } else if (type === 'shield') {
-      const key = `${row}_${col}`;
-      const estadoActual = room.boardHistories[socket.id]?.[key];
-      // Solo permite poner escudo si la casilla esta sana
-      if (!estadoActual || estadoActual === 'sonar') {
-        room.boardHistories[socket.id][key] = 'shielded';
-      } else {
-        // Reembolsa energía si no pudo aplicarse
-        activePlayer.energy = Math.min(10, activePlayer.energy + (cost || 0));
-        return;
-      }
+  const key = `${row}_${col}`;
+  const estadoActual = room.boardHistories[socket.id]?.[key];
+  const tieneBarco = activePlayer.grid[row]?.[col] !== null;
+
+  // Validación en servidor: debe tener barco y la casilla no debe estar dañada
+  if (tieneBarco && (!estadoActual || estadoActual === 'sonar')) {
+    room.boardHistories[socket.id][key] = 'shielded';
+  } else {
+    // Devuelve la energía en caso de que la solicitud haya sido inválida
+    activePlayer.energy = Math.min(10, activePlayer.energy + (cost || 0));
+    return;
+  }
     } else if (type === 'repair') {
       delete room.boardHistories[socket.id][`${row}_${col}`];
     } else {

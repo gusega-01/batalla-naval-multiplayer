@@ -1125,55 +1125,66 @@
     }
 
     function ejecutarAccionPropia(r, c, shipId) {
-      if (!myTurn) return alert('¡Esperá tu turno!');
-      if (!rouletteSpun) return alert('¡Primero girá la ruleta!');
+  if (!myTurn) return alert('⚠️ ¡Esperá tu turno!');
+  if (!rouletteSpun) return alert('⚠️ ¡Primero girá la ruleta!');
 
-      if (['basic_shot', 'cross_shot', 'rain', 'drone'].includes(selectedSkill)) {
-        return alert('❌ No podés disparar sobre tu propia flota.');
-      }
+  if (['basic_shot', 'cross_shot', 'rain', 'drone'].includes(selectedSkill)) {
+    return alert('❌ No podés disparar sobre tu propia flota.');
+  }
 
-      const costs = { shield: 2, repair: 3, move_ship: 2 };
-      const cost = costs[selectedSkill] || 0;
+  const costs = { shield: 2, repair: 3, move_ship: 2 };
+  const cost = costs[selectedSkill] || 0;
 
-      if (myEnergy < cost) return alert('⚡ Energía insuficiente');
+  if (myEnergy < cost) return alert('⚡ Energía insuficiente');
 
-      if (selectedSkill === 'shield') {
-        const key = `${r}_${c}`;
-        const estadoActual = boardHistories[socket.id] ? boardHistories[socket.id][key] : null;
+  if (selectedSkill === 'shield') {
+    const key = `${r}_${c}`;
+    const estadoActual = boardHistories[socket.id] ? boardHistories[socket.id][key] : null;
 
-        if (estadoActual === 'hit' || estadoActual === 'sunk' || estadoActual === 'water') {
-          return alert('⚠️ No podés escudar una casilla dañada, hundida o golpeada. ¡Reparala primero!');
-        }
-
-        socket.emit('game:action', {
-          roomCode: currentRoomCode,
-          targetId: socket.id,
-          row: r,
-          col: c,
-          type: 'shield',
-          cost
-        });
-        setSkill('basic_shot');
-      } 
-      else if (selectedSkill === 'repair') {
-        const key = `${r}_${c}`;
-        if (!boardHistories[socket.id] || boardHistories[socket.id][key] !== 'hit') {
-          return alert('⚠️ Solo podés reparar casillas con un impacto (💥)');
-        }
-        socket.emit('game:action', {
-          roomCode: currentRoomCode,
-          targetId: socket.id,
-          row: r,
-          col: c,
-          type: 'repair',
-          cost
-        });
-        setSkill('basic_shot');
-      } 
-      else if (selectedSkill === 'move_ship') {
-        log(`💡 Arrastrá el barco directamente con el mouse a su nueva casilla.`);
-      }
+    // 1. No se puede poner escudo sobre agua o casillas vacías sin barco
+    if (shipId === null) {
+      return alert('⚠️ El escudo solo se puede aplicar sobre casillas que tengan un barco.');
     }
+
+    // 2. No se puede poner escudo sobre casillas dañadas, hundidas o con agua
+    if (estadoActual === 'hit' || estadoActual === 'sunk' || estadoActual === 'water') {
+      return alert('⚠️ No podés escudar una casilla dañada, hundida o con impacto. ¡Reparala primero!');
+    }
+
+    // 3. No se puede poner escudo si la casilla ya tiene un escudo activo
+    if (estadoActual === 'shielded') {
+      return alert('⚠️ Esta casilla ya tiene un escudo activo.');
+    }
+
+    socket.emit('game:action', {
+      roomCode: currentRoomCode,
+      targetId: socket.id,
+      row: r,
+      col: c,
+      type: 'shield',
+      cost
+    });
+    setSkill('basic_shot');
+  } 
+  else if (selectedSkill === 'repair') {
+    const key = `${r}_${c}`;
+    if (!boardHistories[socket.id] || boardHistories[socket.id][key] !== 'hit') {
+      return alert('⚠️ Solo podés reparar casillas con un impacto (💥)');
+    }
+    socket.emit('game:action', {
+      roomCode: currentRoomCode,
+      targetId: socket.id,
+      row: r,
+      col: c,
+      type: 'repair',
+      cost
+    });
+    setSkill('basic_shot');
+  } 
+  else if (selectedSkill === 'move_ship') {
+    log(`💡 Arrastrá el barco directamente con el mouse o dedo a su nueva casilla.`);
+  }
+}
 
     function dispararRivalConMisil(r, c, cellElem) {
       if (disparoEnCurso) return;
