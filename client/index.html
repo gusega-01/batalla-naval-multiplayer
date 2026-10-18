@@ -441,10 +441,10 @@
       <h3 style="margin:2px 0; color: #f1c40f;">Tu Apodo de Capitán</h3>
       <input type="text" id="playerNameInput" placeholder="Ej: Gustavo" maxlength="12">
       <hr style="border-color:rgba(255,255,255,0.1); margin:12px 0;">
-      <button class="btn-primary" onclick="crearSala()">✨ Crear Nueva Sala</button>
-      <br><br>
-      <input type="text" id="roomCodeInput" placeholder="Código de Sala">
-      <button class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
+      <button type="button" class="btn-primary" onclick="crearSala()">✨ Crear Nueva Sala</button>
+<br><br>
+<input type="text" id="roomCodeInput" placeholder="Código de Sala">
+<button type="button" class="btn-primary" style="background:#16a34a;" onclick="unirseASala()">Unirse a Sala</button>
     </div>
 
     <!-- Invitación QR -->
@@ -610,19 +610,39 @@
       return name;
     }
 
-    function crearSala() {
-      const name = getPlayerName();
-      if (!name) return;
-      socket.emit('room:create', { hostName: name });
-    }
+    window.crearSala = function() {
+  const nameInput = document.getElementById('playerNameInput');
+  const name = nameInput ? nameInput.value.trim() : '';
 
-    function unirseASala() {
-      const name = getPlayerName();
-      if (!name) return;
-      const code = document.getElementById('roomCodeInput').value.trim();
-      if (!code) return alert('Ingresá el código de sala');
-      socket.emit('room:join', { roomCode: code, playerName: name });
-    }
+  if (!name) {
+    alert('⚠️ Por favor, ingresá un apodo de capitán.');
+    return;
+  }
+
+  log(`Creando sala para ${name}...`);
+  socket.emit('room:create', { hostName: name });
+};
+
+window.unirseASala = function() {
+  const nameInput = document.getElementById('playerNameInput');
+  const name = nameInput ? nameInput.value.trim() : '';
+
+  const codeInput = document.getElementById('roomCodeInput');
+  const code = codeInput ? codeInput.value.trim() : '';
+
+  if (!name) {
+    alert('⚠️ Por favor, ingresá un apodo de capitán.');
+    return;
+  }
+
+  if (!code) {
+    alert('⚠️ Ingresá el código de la sala.');
+    return;
+  }
+
+  log(`Uniéndose a la sala ${code}...`);
+  socket.emit('room:join', { roomCode: code, playerName: name });
+};
 
     function agregarBot() {
       socket.emit('room:add_bot', { roomCode: currentRoomCode });
